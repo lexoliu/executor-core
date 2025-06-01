@@ -1,0 +1,21 @@
+[package]
+name = "executor-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies.async-executor]
+version = "1.13.2"
+optional = true
+
+[dependencies.tokio]
+version = "1.45"
+default-features = false
+features = ["rt", "rt-multi-thread"]
+optional = true
+
+[features]
+default = ["default-async-executor"]
+async-executor = ["dep:async-executor"]
+tokio = ["dep:tokio"]
+default-async-executor = ["async-executor"]
+default-tokio = ["tokio"]
