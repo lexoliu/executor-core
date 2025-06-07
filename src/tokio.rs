@@ -26,9 +26,8 @@ impl<T: 'static> LocalTask for TokioTask<T> {
             }
         })
     }
-    async fn cancel(self) -> Option<Self::Output> {
+    fn cancel(self) {
         self.0.abort();
-        None
     }
 }
 
@@ -42,9 +41,8 @@ impl<T: 'static + Send> Task for TokioTask<T> {
             }
         })
     }
-    async fn cancel(self) -> Option<Self::Output> {
+    fn cancel(self) {
         self.0.abort();
-        None
     }
 }
 

@@ -3,6 +3,9 @@ name = "executor-core"
 version = "0.1.0"
 edition = "2024"
 
+[dependencies]
+pin-project-lite = "0.2.16"
+
 [dependencies.async-executor]
 version = "1.13.2"
 optional = true
