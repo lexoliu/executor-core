@@ -12,6 +12,12 @@ use alloc::{boxed::Box, string::String};
 
 use pin_project_lite::pin_project;
 
+#[allow(dead_code)]
+pub type DefaultExecutor = ::async_executor::Executor<'static>;
+
+#[allow(dead_code)]
+pub type DefaultLocalExecutor = ::async_executor::LocalExecutor<'static>;
+
 use crate::{Error, Executor, LocalExecutor, LocalTask, Task};
 
 struct SmolTask<T>(ManuallyDrop<async_executor::Task<Result<T, Error>>>);

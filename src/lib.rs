@@ -40,7 +40,6 @@
 
 extern crate alloc;
 use alloc::borrow::Cow;
-use core::ops::Deref;
 #[cfg(feature = "std")]
 extern crate std;
 
@@ -50,10 +49,15 @@ mod async_executor;
 mod tokio;
 
 #[cfg(feature = "default-async-executor")]
-pub type DefaultExecutor = ::async_executor::Executor<'static>;
+#[doc(hidden)]
+pub use async_executor::DefaultExecutor;
 
 #[cfg(feature = "default-async-executor")]
-pub type DefaultLocalExecutor = ::async_executor::LocalExecutor<'static>;
+#[doc(hidden)]
+pub use async_executor::DefaultLocalExecutor;
+
+#[cfg(all(feature = "default-async-executor", feature = "default-tokio"))]
+compile_error!("You are not allowed to set mutiple default executors at the same time");
 
 /// A trait for executor implementations that can spawn `Send` futures.
 ///
@@ -181,9 +185,11 @@ pub enum Error {
     Cancelled,
 }
 
+#[cfg(feature = "std")]
 static GLOBAL_EXECUTOR: std::sync::LazyLock<DefaultExecutor> =
     std::sync::LazyLock::new(DefaultExecutor::default);
 
+#[cfg(feature = "std")]
 /// Spawns a new task on the global executor.
 ///
 /// This is a convenience function that spawns a task using the default global executor
@@ -207,5 +213,6 @@ static GLOBAL_EXECUTOR: std::sync::LazyLock<DefaultExecutor> =
 pub fn spawn<T: Send + 'static>(
     fut: impl Future<Output = T> + Send + 'static,
 ) -> impl Task<Output = T> {
+    use core::ops::Deref;
     Executor::spawn(GLOBAL_EXECUTOR.deref(), fut)
 }
