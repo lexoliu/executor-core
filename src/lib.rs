@@ -1,4 +1,4 @@
-use std::sync::LazyLock;
+use std::{borrow::Cow, sync::LazyLock};
 
 #[cfg(feature = "async-executor")]
 mod async_executor;
@@ -15,15 +15,29 @@ pub trait Executor {
     fn spawn<T: Send + 'static>(
         &self,
         fut: impl Future<Output = T> + Send + 'static,
-    ) -> impl Send + Task<Output = T>;
+    ) -> impl Task<Output = T>;
 }
 
 pub trait LocalExecutor {
-    fn spawn<T: 'static>(&self, fut: impl Future<Output = T> + 'static) -> impl Task<Output = T>;
+    fn spawn<T: 'static>(
+        &self,
+        fut: impl Future<Output = T> + 'static,
+    ) -> impl LocalTask<Output = T>;
 }
 
-pub trait Task: Future + 'static {
-    fn detach(self);
+pub trait Task: Future + 'static + Send {
+    fn result(self) -> impl Future<Output = Result<Self::Output, Error>> + Send;
+    fn cancel(self) -> impl Future<Output = Option<Self::Output>> + Send;
+}
+
+pub trait LocalTask: Future + 'static {
+    fn result(self) -> impl Future<Output = Result<Self::Output, Error>>;
+    fn cancel(self) -> impl Future<Output = Option<Self::Output>>;
+}
+
+pub enum Error {
+    Panicked(Cow<'static, str>),
+    Cancelled,
 }
 
 static GLOBAL_EXECUTOR: LazyLock<DefaultExecutor> = LazyLock::new(DefaultExecutor::default);

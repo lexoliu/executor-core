@@ -14,7 +14,7 @@ features = ["rt", "rt-multi-thread"]
 optional = true
 
 [features]
-default = ["default-async-executor"]
+default = ["default-async-executor", "tokio"]
 async-executor = ["dep:async-executor"]
 tokio = ["dep:tokio"]
 default-async-executor = ["async-executor"]
