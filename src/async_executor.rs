@@ -8,11 +8,13 @@ use std::{
     task::{Poll, ready},
 };
 
+use alloc::{boxed::Box, string::String};
+
 use pin_project_lite::pin_project;
 
 use crate::{Error, Executor, LocalExecutor, LocalTask, Task};
 
-pub struct SmolTask<T>(ManuallyDrop<async_executor::Task<Result<T, Error>>>);
+struct SmolTask<T>(ManuallyDrop<async_executor::Task<Result<T, Error>>>);
 
 impl<T> Future for SmolTask<T> {
     type Output = T;

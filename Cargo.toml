@@ -18,7 +18,8 @@ optional = true
 
 [features]
 default = ["default-async-executor", "tokio"]
-async-executor = ["dep:async-executor"]
-tokio = ["dep:tokio"]
+std = []
+async-executor = ["dep:async-executor", "std"]
+tokio = ["dep:tokio", "std"]
 default-async-executor = ["async-executor"]
 default-tokio = ["tokio"]
