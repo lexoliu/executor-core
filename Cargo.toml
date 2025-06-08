@@ -1,7 +1,7 @@
 [package]
 name = "executor-core"
 version = "0.1.0"
-authors = ["Lexo Liu"]
+authors = ["Lexo Liu <me@lexo.cool>"]
 edition = "2024"
 description = "A flexible task executor abstraction layer for Rust async runtimes"
 repository = "https://github.com/lexoooooo/executor-core"
