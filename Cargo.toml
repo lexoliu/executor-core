@@ -1,7 +1,20 @@
 [package]
 name = "executor-core"
 version = "0.1.0"
+authors = ["Lexo Liu"]
 edition = "2024"
+description = "A flexible task executor abstraction layer for Rust async runtimes"
+repository = "https://github.com/lexoooooo/executor-core"
+documentation = "https://docs.rs/executor-core"
+homepage = "https://github.com/lexoooooo/executor-core"
+license = "MIT"
+keywords = ["async", "executor", "runtime", "futures", "tokio"]
+categories = ["asynchronous", "concurrency", "no-std"]
+readme = "README.md"
+
+[package.metadata.docs.rs]
+features = ["default-async-executor", "tokio", "std"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 pin-project-lite = "0.2.16"
@@ -23,3 +36,26 @@ async-executor = ["dep:async-executor", "std"]
 tokio = ["dep:tokio", "std"]
 default-async-executor = ["async-executor"]
 default-tokio = ["tokio"]
+
+# Feature flag for enabling all compatible features
+full = ["std", "async-executor", "tokio"]
+
+[dev-dependencies]
+tokio = { version = "1.45", features = [
+    "macros",
+    "time",
+    "rt",
+    "rt-multi-thread",
+] }
+
+[[example]]
+name = "basic"
+required-features = ["default"]
+
+[[example]]
+name = "error_handling"
+required-features = ["default"]
+
+
+[lib]
+doctest = false
