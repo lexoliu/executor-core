@@ -29,13 +29,25 @@ default-features = false
 features = ["rt", "rt-multi-thread"]
 optional = true
 
+# Dependencies for `web` backend
+
+[dependencies.wasm-bindgen-futures]
+version = "0.4.5"
+optional = true
+
+[dependencies.async-oneshot]
+version = "0.5.9"
+optional = true
+
 [features]
-default = ["default-async-executor", "tokio"]
+default = ["default-async-executor", "tokio","web"]
 std = []
 async-executor = ["dep:async-executor", "std"]
 tokio = ["dep:tokio", "std"]
 default-async-executor = ["async-executor"]
 default-tokio = ["tokio"]
+web = ["dep:wasm-bindgen-futures","dep:async-oneshot"]
+default-web = ["web"]
 
 # Feature flag for enabling all compatible features
 full = ["std", "async-executor", "tokio"]

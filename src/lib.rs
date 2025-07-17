@@ -90,6 +90,13 @@ mod async_executor;
 #[cfg(feature = "tokio")]
 mod tokio;
 
+#[cfg(feature = "web")]
+pub mod web;
+#[cfg(feature = "default-web")]
+pub use web::Web as DefaultExecutor;
+#[cfg(feature = "default-web")]
+pub use web::Web as DefaultLocalExecutor;
+
 #[cfg(feature = "default-async-executor")]
 #[doc(hidden)]
 pub use async_executor::DefaultExecutor;
@@ -136,7 +143,8 @@ pub trait LocalExecutor {
 /// # Panics
 /// If the task is cancelled or panics during execution, the attempt to await the task will panic.
 /// If you need to handle these cases gracefully, use the [`result`] method instead.
-pub trait Task: Future + 'static + Send {
+#[allow(unused_must_use)]
+pub trait Task: IntoFuture + 'static + Send {
     /// Returns the task result or error without panicking.
     ///
     /// Unlike directly awaiting the task, this method returns a [`Result`] that
@@ -194,7 +202,7 @@ pub trait Task: Future + 'static + Send {
 ///
 /// Similar to [`Task`], but for futures that must execute on the same thread
 /// they were spawned on. This is useful for working with non-thread-safe types.
-pub trait LocalTask: Future + 'static {
+pub trait LocalTask: IntoFuture + 'static {
     /// Returns the task result or error without panicking.
     ///
     /// Similar to [`Task::result`], but for local tasks that are not `Send`.

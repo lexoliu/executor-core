@@ -1,14 +1,14 @@
-use std::{
+use core::{
     any::Any,
-    borrow::Cow,
     mem::ManuallyDrop,
     ops::DerefMut,
-    panic::{AssertUnwindSafe, catch_unwind},
     pin::Pin,
     task::{Poll, ready},
 };
 
-use alloc::{boxed::Box, string::String};
+use std::panic::{AssertUnwindSafe, catch_unwind};
+
+use alloc::{borrow::Cow, boxed::Box, string::String};
 
 use pin_project_lite::pin_project;
 
