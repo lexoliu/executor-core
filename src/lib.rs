@@ -1,67 +1,84 @@
 #![no_std]
-//! A flexible task executor abstraction layer for Rust async runtimes.
+//! Write async libraries without choosing a runtime.
 //!
-//! This crate provides a unified interface for spawning and managing async tasks across
-//! different executor backends. It supports both global and local executors, with built-in
-//! implementations for popular runtimes like [`async-executor`] and [`tokio`].
+//! Your users should decide whether to use tokio, async-std, or any other runtime.
+//! Not you.
 //!
-//! # Quick Start
+//! # How It Works
+//!
+//! Instead of hard-coding `tokio::spawn`, accept an executor parameter:
 //!
 //! ```rust
 //! use executor_core::Executor;
-//! use async_executor::Executor as AsyncExecutor;
 //!
-//! let executor = AsyncExecutor::new();
-//! // Spawn a task on the executor
-//! let task = executor.spawn(async {
-//!     println!("Hello from async task!");
-//!     42
-//! });
-//!
-//! // Await the result
-//! let result = futures_lite::future::block_on(task);
-//! assert_eq!(result, 42);
+//! pub async fn parallel_sum<E: Executor>(
+//!     executor: &E,
+//!     numbers: Vec<i32>
+//! ) -> i32 {
+//!     let (left, right) = numbers.split_at(numbers.len() / 2);
+//!     
+//!     // Spawn on ANY runtime via the executor parameter
+//!     let left_sum = executor.spawn(async move {
+//!         left.iter().sum::<i32>()
+//!     });
+//!     
+//!     let right_sum = executor.spawn(async move {
+//!         right.iter().sum::<i32>()
+//!     });
+//!     
+//!     left_sum.await + right_sum.await
+//! }
 //! ```
 //!
-//! # Thread Safety
+//! Now users can call your library with their preferred runtime:
 //!
-//! The crate provides separate traits for thread-safe and thread-local execution:
+//! ```rust,no_run
+//! # use executor_core::Executor;
+//! # async fn parallel_sum<E: Executor>(executor: &E, numbers: Vec<i32>) -> i32 { 0 }
 //!
-//! - [`Executor`]: For `Send` futures that can move between threads
-//! - [`LocalExecutor`]: For non-`Send` futures bound to one thread
+//! // User already using tokio? Great!
+//! # #[cfg(feature = "tokio")]
+//! tokio::runtime::Runtime::new().unwrap().block_on(async {
+//!     let runtime = tokio::runtime::Handle::current();
+//!     let sum = parallel_sum(&runtime, vec![1, 2, 3, 4]).await;
+//! });
 //!
-//! Both traits return [`async_task::Task`] which provides:
-//! - `await` to get the result
-//! - `cancel()` to cancel the task
-//! - `detach()` to run the task in background
-//!
-//! ```rust
-//! use executor_core::{Executor, LocalExecutor};
-//! use std::rc::Rc;
-//!
-//! // ✅ Send futures work with Executor
-//! let executor = async_executor::Executor::new();
-//! let task = executor.spawn(async { "Hello".to_string() });
-//!
-//! // ✅ Non-Send futures work with LocalExecutor
-//! let local_executor = async_executor::LocalExecutor::new();
-//! let local_task = local_executor.spawn(async {
-//!     let data = Rc::new(42); // Rc is not Send
-//!     *data
+//! // User prefers async-executor? Also great!
+//! # #[cfg(feature = "async-executor")]  
+//! async_executor::Executor::new().run(async {
+//!     let executor = async_executor::Executor::new();
+//!     let sum = parallel_sum(&executor, vec![1, 2, 3, 4]).await;
 //! });
 //! ```
 //!
-//! # Feature Flags
+//! # Quick Start
 //!
-//! - `async-executor` - Enable [`async-executor`] backend support
-//! - `tokio` - Enable [`tokio`] backend support
-//! - `web` - Enable web backend support with [`wasm-bindgen-futures`]
-//! - `std` - Enable standard library support (auto-enabled by executor backends)
+//! **For library authors:** Just add the core crate, no features needed.
+//! ```toml
+//! [dependencies]
+//! executor-core = "0.2"
+//! ```
 //!
-//! [`async-executor`]: https://docs.rs/async-executor
-//! [`tokio`]: https://docs.rs/tokio
-//! [`wasm-bindgen-futures`]: https://docs.rs/wasm-bindgen-futures
-
+//! **For app developers:** Add with your runtime's feature.
+//! ```toml
+//! [dependencies]
+//! executor-core = { version = "0.2", features = ["tokio"] }
+//! ```
+//!
+//! # API
+//!
+//! Two traits:
+//! - [`Executor`] - For `Send` futures
+//! - [`LocalExecutor`] - For non-`Send` futures (Rc, RefCell, etc.)
+//!
+//! Both return [`async_task::Task`]:
+//! ```rust,ignore
+//! let task = executor.spawn(async { work() });
+//! let result = task.await;        // Get result
+//! task.cancel().await;            // Cancel task
+//! task.detach();                  // Run in background
+//! ```
+//!
 extern crate alloc;
 use core::future::Future;
 

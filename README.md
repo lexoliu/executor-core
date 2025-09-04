@@ -11,72 +11,87 @@
 [docs-badge]: https://docs.rs/executor-core/badge.svg
 [docs-url]: https://docs.rs/executor-core
 
-A flexible task executor abstraction layer for Rust async runtimes.
+Write async libraries without choosing a runtime.
 
-## Overview
+Your users should decide whether to use tokio, async-std, or any other runtime. Not you.
 
-`executor-core` provides a unified interface for spawning and managing async tasks across different executor backends. Write once, run on any supported async runtime.
+## How It Works
 
-## Features
-
-- **Runtime agnostic** - Works with `async-executor`, `tokio`, web (WASM), and custom executors
-- **Unified task interface** - Uses `async_task::Task` for all backends
-- **Zero-cost abstractions** - Compiles to direct executor calls
-- **No-std support** - Works in embedded environments
-
-## Quick Start
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-executor-core = "0.1"
-```
-
-Basic usage:
+Instead of hard-coding `tokio::spawn`, accept an executor parameter:
 
 ```rust
 use executor_core::Executor;
-use async_executor::Executor as AsyncExecutor;
 
-#[tokio::main]
-async fn main() {
-    let executor = AsyncExecutor::new();
-    let task = executor.spawn(async {
-        println!("Hello from task!");
-        42
+pub async fn parallel_sum<E: Executor>(
+    executor: &E,
+    numbers: Vec<i32>
+) -> i32 {
+    let (left, right) = numbers.split_at(numbers.len() / 2);
+
+    let left_sum = executor.spawn(async move {
+        left.iter().sum::<i32>()
     });
 
-    let result = task.await;
-    println!("Result: {}", result);
+    let right_sum = executor.spawn(async move {
+        right.iter().sum::<i32>()
+    });
+
+    left_sum.await + right_sum.await
 }
 ```
 
-
-## Task Management
+Users call it with their runtime:
 
 ```rust
-use executor_core::Executor;
+// tokio users
+let runtime = tokio::runtime::Runtime::new()?;
+let sum = parallel_sum(&runtime, vec![1, 2, 3, 4]).await;
 
-// Spawn and await
-let task = executor.spawn(async { 42 });
-let result = task.await;
-
-// Cancel a task
-let task = executor.spawn(async { /* long running */ });
-task.cancel().await;
-
-// Detach to run in background
-let task = executor.spawn(async { /* background work */ });
-task.detach();
+// async-executor users
+let executor = async_executor::Executor::new();
+let sum = parallel_sum(&executor, vec![1, 2, 3, 4]).await;
 ```
 
-## Feature Flags
+## Quick Start
 
-- `async-executor` - Enable `async-executor` backend
-- `tokio` - Enable `tokio` backend  
-- `web` - Enable web backend support (WASM)
-- `std` - Enable standard library support
+**Library authors:**
+
+```toml
+[dependencies]
+executor-core = "0.2"
+```
+
+**App developers:**
+
+```toml
+[dependencies]
+executor-core = { version = "0.2", features = ["tokio"] }
+```
+
+## API
+
+Two traits:
+
+- `Executor` - For `Send` futures
+- `LocalExecutor` - For non-`Send` futures
+
+Both return `async_task::Task`:
+
+```rust
+let task = executor.spawn(async { work() });
+let result = task.await;    // Get result
+task.cancel().await;         // Cancel task
+task.detach();              // Run in background
+```
+
+## Supported Runtimes
+
+| Runtime        | Feature            |
+| -------------- | ------------------ |
+| tokio          | `"tokio"`          |
+| async-executor | `"async-executor"` |
+| Web/WASM       | `"web"`            |
+
 ## License
 
-Licensed under the [MIT License](LICENSE).
+MIT

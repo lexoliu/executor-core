@@ -1,12 +1,12 @@
 [package]
 name = "executor-core"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Lexo Liu <me@lexo.cool>"]
 edition = "2024"
 description = "A flexible task executor abstraction layer for Rust async runtimes"
-repository = "https://github.com/lexoooooo/executor-core"
+repository = "https://github.com/lexoliu/executor-core"
 documentation = "https://docs.rs/executor-core"
-homepage = "https://github.com/lexoooooo/executor-core"
+homepage = "https://github.com/lexoliu/executor-core"
 license = "MIT"
 keywords = ["async", "executor", "runtime", "futures", "tokio"]
 categories = ["asynchronous", "concurrency", "no-std"]
@@ -53,6 +53,3 @@ tokio = { version = "1.45", features = [
     "rt",
     "rt-multi-thread",
 ] }
-
-[lib]
-doctest = false
