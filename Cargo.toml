@@ -13,10 +13,11 @@ categories = ["asynchronous", "concurrency", "no-std"]
 readme = "README.md"
 
 [package.metadata.docs.rs]
-features = ["default-async-executor", "tokio", "std"]
+features = ["async-executor", "tokio", "std", "web"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+async-task = "4.7"
 pin-project-lite = "0.2.16"
 
 [dependencies.async-executor]
@@ -35,19 +36,12 @@ optional = true
 version = "0.4.5"
 optional = true
 
-[dependencies.async-oneshot]
-version = "0.5.9"
-optional = true
-
 [features]
-default = ["default-async-executor", "tokio","web"]
+default = []
 std = []
 async-executor = ["dep:async-executor", "std"]
 tokio = ["dep:tokio", "std"]
-default-async-executor = ["async-executor"]
-default-tokio = ["tokio"]
-web = ["dep:wasm-bindgen-futures","dep:async-oneshot"]
-default-web = ["web"]
+web = ["dep:wasm-bindgen-futures"]
 
 # Feature flag for enabling all compatible features
 full = ["std", "async-executor", "tokio"]
@@ -59,15 +53,6 @@ tokio = { version = "1.45", features = [
     "rt",
     "rt-multi-thread",
 ] }
-
-[[example]]
-name = "basic"
-required-features = ["default"]
-
-[[example]]
-name = "error_handling"
-required-features = ["default"]
-
 
 [lib]
 doctest = false

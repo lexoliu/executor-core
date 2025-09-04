@@ -19,9 +19,9 @@ A flexible task executor abstraction layer for Rust async runtimes.
 
 ## Features
 
-- **Runtime agnostic** - Works with `async-executor`, `tokio`, and custom executors
+- **Runtime agnostic** - Works with `async-executor`, `tokio`, web (WASM), and custom executors
+- **Unified task interface** - Uses `async_task::Task` for all backends
 - **Zero-cost abstractions** - Compiles to direct executor calls
-- **Panic handling** - Graceful error recovery from task panics
 - **No-std support** - Works in embedded environments
 
 ## Quick Start
@@ -36,10 +36,13 @@ executor-core = "0.1"
 Basic usage:
 
 ```rust
-use executor_core::spawn;
+use executor_core::Executor;
+use async_executor::Executor as AsyncExecutor;
 
+#[tokio::main]
 async fn main() {
-    let task = spawn(async {
+    let executor = AsyncExecutor::new();
+    let task = executor.spawn(async {
         println!("Hello from task!");
         42
     });
@@ -50,26 +53,29 @@ async fn main() {
 ```
 
 
-## Error Handling
+## Task Management
 
 ```rust
-use executor_core::{spawn, Error};
+use executor_core::Executor;
 
-let task = spawn(async { 42 });
+// Spawn and await
+let task = executor.spawn(async { 42 });
+let result = task.await;
 
-match task.result().await {
-    Ok(value) => println!("Success: {}", value),
-    Err(Error::Panicked(msg)) => println!("Task panicked: {}", msg),
-    Err(Error::Cancelled) => println!("Task was cancelled"),
-}
+// Cancel a task
+let task = executor.spawn(async { /* long running */ });
+task.cancel().await;
+
+// Detach to run in background
+let task = executor.spawn(async { /* background work */ });
+task.detach();
 ```
 
 ## Feature Flags
 
-- `default-async-executor` (default) - Use `async-executor` as global executor
-- `default-tokio` - Use `tokio` as global executor
 - `async-executor` - Enable `async-executor` backend
-- `tokio` - Enable `tokio` backend
+- `tokio` - Enable `tokio` backend  
+- `web` - Enable web backend support (WASM)
 - `std` - Enable standard library support
 ## License
 
