@@ -125,3 +125,5 @@ pub trait LocalExecutor {
     /// - Detach the task to run in background
     fn spawn<T: 'static>(&self, fut: impl Future<Output = T> + 'static) -> async_task::Task<T>;
 }
+
+pub use async_task::*;
