@@ -119,11 +119,18 @@ pub trait Executor {
 pub trait LocalExecutor {
     /// Spawns a future on this local executor.
     ///
+    /// # Panic
+    ///
+    /// This function would panic if called from a different thread
+    ///
     /// Returns an [`async_task::Task`] handle that can be used to:
     /// - Await the result
     /// - Cancel the task
     /// - Detach the task to run in background
-    fn spawn<T: 'static>(&self, fut: impl Future<Output = T> + 'static) -> async_task::Task<T>;
+    fn spawn_local<T: 'static>(
+        &self,
+        fut: impl Future<Output = T> + 'static,
+    ) -> async_task::Task<T>;
 }
 
 pub use async_task::*;
