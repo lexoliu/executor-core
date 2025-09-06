@@ -133,4 +133,59 @@ pub trait LocalExecutor {
     ) -> async_task::Task<T>;
 }
 
+impl<E: LocalExecutor> LocalExecutor for &E {
+    fn spawn_local<T: 'static>(
+        &self,
+        fut: impl Future<Output = T> + 'static,
+    ) -> async_task::Task<T> {
+        (*self).spawn_local(fut)
+    }
+}
+
+impl<E: LocalExecutor> LocalExecutor for Box<E> {
+    fn spawn_local<T: 'static>(
+        &self,
+        fut: impl Future<Output = T> + 'static,
+    ) -> async_task::Task<T> {
+        (**self).spawn_local(fut)
+    }
+}
+
+impl<E: Executor> Executor for Box<E> {
+    fn spawn<T: Send + 'static>(
+        &self,
+        fut: impl Future<Output = T> + Send + 'static,
+    ) -> async_task::Task<T> {
+        (**self).spawn(fut)
+    }
+}
+
+impl<E: Executor> Executor for alloc::sync::Arc<E> {
+    fn spawn<T: Send + 'static>(
+        &self,
+        fut: impl Future<Output = T> + Send + 'static,
+    ) -> async_task::Task<T> {
+        (**self).spawn(fut)
+    }
+}
+
+impl<E: LocalExecutor> LocalExecutor for alloc::rc::Rc<E> {
+    fn spawn_local<T: 'static>(
+        &self,
+        fut: impl Future<Output = T> + 'static,
+    ) -> async_task::Task<T> {
+        (**self).spawn_local(fut)
+    }
+}
+
+impl<E: Executor> Executor for &E {
+    fn spawn<T: Send + 'static>(
+        &self,
+        fut: impl Future<Output = T> + Send + 'static,
+    ) -> async_task::Task<T> {
+        (*self).spawn(fut)
+    }
+}
+
+use alloc::boxed::Box;
 pub use async_task::*;
