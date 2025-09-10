@@ -9,6 +9,7 @@ mod tokio;
 mod web;
 
 use core::{
+    fmt::Debug,
     future::Future,
     marker::PhantomData,
     pin::Pin,
@@ -57,6 +58,30 @@ where
 }
 
 pub struct AnyLocalExecutor(Box<dyn AnyLocalExecutorImpl>);
+
+impl Debug for AnyLocalExecutor {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("AnyLocalExecutor").finish()
+    }
+}
+
+impl Debug for AnyExecutor {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("AnyExecutor").finish()
+    }
+}
+
+impl AnyExecutor {
+    pub fn new(executor: impl Executor + 'static) -> Self {
+        Self(Box::new(executor))
+    }
+}
+
+impl AnyLocalExecutor {
+    pub fn new(executor: impl LocalExecutor + 'static) -> Self {
+        Self(Box::new(executor))
+    }
+}
 
 pub struct AnyLocalExecutorTask<T> {
     inner: Pin<Box<dyn Task<()> + 'static>>,
@@ -246,34 +271,38 @@ where
 mod std_on {
     use alloc::boxed::Box;
 
-    use crate::{AnyExecutorTask, AnyLocalExecutor, AnyLocalExecutorTask, Executor, LocalExecutor};
+    use crate::{
+        AnyExecutor, AnyExecutorTask, AnyLocalExecutor, AnyLocalExecutorTask, Executor,
+        LocalExecutor,
+    };
 
     extern crate std;
 
-    use core::{cell::RefCell, panic::AssertUnwindSafe};
-    use std::sync::RwLock;
+    use core::{cell::OnceCell, panic::AssertUnwindSafe};
+    use std::sync::OnceLock;
     std::thread_local! {
-        static LOCAL_EXECUTOR: RefCell<Option<AnyLocalExecutor>> = const { RefCell::new(None) };
+        static LOCAL_EXECUTOR: OnceCell<AnyLocalExecutor> = const { OnceCell::new() };
     }
-    pub fn set_local_executor(executor: impl LocalExecutor + 'static) {
+    pub fn init_local_executor(executor: impl LocalExecutor + 'static) {
         LOCAL_EXECUTOR.with(|cell| {
-            *cell.borrow_mut() = Some(AnyLocalExecutor(Box::new(executor)));
+            cell.set(AnyLocalExecutor::new(executor))
+                .expect("Local executor already set");
         });
     }
 
-    static GLOBAL_EXECUTOR: RwLock<Option<crate::AnyExecutor>> = RwLock::new(None);
+    static GLOBAL_EXECUTOR: OnceLock<AnyExecutor> = OnceLock::new();
 
-    pub fn set_global_executor(executor: impl crate::Executor + 'static) {
-        let any_executor = crate::AnyExecutor(Box::new(executor));
-        let _ = Box::leak(std::boxed::Box::new(any_executor));
+    pub fn init_global_executor(executor: impl crate::Executor + 'static) {
+        GLOBAL_EXECUTOR
+            .set(AnyExecutor::new(executor))
+            .expect("Global executor already set");
     }
 
     pub fn spawn<Fut>(fut: Fut) -> AnyExecutorTask<Fut::Output>
     where
         Fut: Future<Output: Send> + Send + 'static,
     {
-        let guard = GLOBAL_EXECUTOR.read().unwrap();
-        let executor = guard.as_ref().expect("Global executor not set");
+        let executor = GLOBAL_EXECUTOR.get().expect("Global executor not set");
         executor.spawn(fut)
     }
 
@@ -282,8 +311,7 @@ mod std_on {
         Fut: Future + 'static,
     {
         LOCAL_EXECUTOR.with(|cell| {
-            let executor = cell.borrow();
-            let executor = executor.as_ref().expect("Local executor not set");
+            let executor = cell.get().expect("Local executor not set");
             executor.spawn(fut)
         })
     }
