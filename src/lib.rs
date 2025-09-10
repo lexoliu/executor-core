@@ -1,191 +1,308 @@
 #![no_std]
-//! Write async libraries without choosing a runtime.
-//!
-//! Your users should decide whether to use tokio, async-std, or any other runtime.
-//! Not you.
-//!
-//! # How It Works
-//!
-//! Instead of hard-coding `tokio::spawn`, accept an executor parameter:
-//!
-//! ```rust
-//! use executor_core::Executor;
-//!
-//! pub async fn parallel_sum<E: Executor>(
-//!     executor: &E,
-//!     numbers: Vec<i32>
-//! ) -> i32 {
-//!     let (left, right) = numbers.split_at(numbers.len() / 2);
-//!     
-//!     // Spawn on ANY runtime via the executor parameter
-//!     let left_sum = executor.spawn(async move {
-//!         left.iter().sum::<i32>()
-//!     });
-//!     
-//!     let right_sum = executor.spawn(async move {
-//!         right.iter().sum::<i32>()
-//!     });
-//!     
-//!     left_sum.await + right_sum.await
-//! }
-//! ```
-//!
-//! Now users can call your library with their preferred runtime:
-//!
-//! ```rust,no_run
-//! # use executor_core::Executor;
-//! # async fn parallel_sum<E: Executor>(executor: &E, numbers: Vec<i32>) -> i32 { 0 }
-//!
-//! // User already using tokio? Great!
-//! # #[cfg(feature = "tokio")]
-//! tokio::runtime::Runtime::new().unwrap().block_on(async {
-//!     let runtime = tokio::runtime::Handle::current();
-//!     let sum = parallel_sum(&runtime, vec![1, 2, 3, 4]).await;
-//! });
-//!
-//! // User prefers async-executor? Also great!
-//! # #[cfg(feature = "async-executor")]  
-//! async_executor::Executor::new().run(async {
-//!     let executor = async_executor::Executor::new();
-//!     let sum = parallel_sum(&executor, vec![1, 2, 3, 4]).await;
-//! });
-//! ```
-//!
-//! # Quick Start
-//!
-//! **For library authors:** Just add the core crate, no features needed.
-//! ```toml
-//! [dependencies]
-//! executor-core = "0.2"
-//! ```
-//!
-//! **For app developers:** Add with your runtime's feature.
-//! ```toml
-//! [dependencies]
-//! executor-core = { version = "0.2", features = ["tokio"] }
-//! ```
-//!
-//! # API
-//!
-//! Two traits:
-//! - [`Executor`] - For `Send` futures
-//! - [`LocalExecutor`] - For non-`Send` futures (Rc, RefCell, etc.)
-//!
-//! Both return [`async_task::Task`]:
-//! ```rust,ignore
-//! let task = executor.spawn(async { work() });
-//! let result = task.await;        // Get result
-//! task.cancel().await;            // Cancel task
-//! task.detach();                  // Run in background
-//! ```
-//!
-extern crate alloc;
-use core::future::Future;
 
-#[cfg(feature = "std")]
-extern crate std;
-
-#[cfg(feature = "async-executor")]
 mod async_executor;
+
 #[cfg(feature = "tokio")]
 mod tokio;
 
 #[cfg(feature = "web")]
-pub mod web;
+mod web;
 
-/// A trait for executor implementations that can spawn thread-safe futures.
-///
-/// This trait represents executors capable of running concurrent tasks that are `Send`,
-/// meaning they can be safely moved between threads. Implementors provide the core
-/// functionality for task spawning in a multi-threaded context.
-pub trait Executor {
-    /// Spawns a thread-safe future on this executor.
-    ///
-    /// Returns an [`async_task::Task`] handle that can be used to:
-    /// - Await the result
-    /// - Cancel the task
-    /// - Detach the task to run in background
-    fn spawn<T: Send + 'static>(
-        &self,
-        fut: impl Future<Output = T> + Send + 'static,
-    ) -> async_task::Task<T>;
-}
-
-/// A trait for executor implementations that can spawn futures on the current thread.
-///
-/// This trait represents executors that operate within a single thread context,
-/// allowing them to work with futures that are not `Send`. This is essential for
-/// working with non-thread-safe types like [Rc](alloc::rc::Rc), [RefCell](core::cell::RefCell), or thread-local storage.
-pub trait LocalExecutor {
-    /// Spawns a future on this local executor.
-    ///
-    /// # Panic
-    ///
-    /// This function would panic if called from a different thread
-    ///
-    /// Returns an [`async_task::Task`] handle that can be used to:
-    /// - Await the result
-    /// - Cancel the task
-    /// - Detach the task to run in background
-    fn spawn_local<T: 'static>(
-        &self,
-        fut: impl Future<Output = T> + 'static,
-    ) -> async_task::Task<T>;
-}
-
-impl<E: LocalExecutor> LocalExecutor for &E {
-    fn spawn_local<T: 'static>(
-        &self,
-        fut: impl Future<Output = T> + 'static,
-    ) -> async_task::Task<T> {
-        (*self).spawn_local(fut)
-    }
-}
-
-impl<E: LocalExecutor> LocalExecutor for Box<E> {
-    fn spawn_local<T: 'static>(
-        &self,
-        fut: impl Future<Output = T> + 'static,
-    ) -> async_task::Task<T> {
-        (**self).spawn_local(fut)
-    }
-}
-
-impl<E: Executor> Executor for Box<E> {
-    fn spawn<T: Send + 'static>(
-        &self,
-        fut: impl Future<Output = T> + Send + 'static,
-    ) -> async_task::Task<T> {
-        (**self).spawn(fut)
-    }
-}
-
-impl<E: Executor> Executor for alloc::sync::Arc<E> {
-    fn spawn<T: Send + 'static>(
-        &self,
-        fut: impl Future<Output = T> + Send + 'static,
-    ) -> async_task::Task<T> {
-        (**self).spawn(fut)
-    }
-}
-
-impl<E: LocalExecutor> LocalExecutor for alloc::rc::Rc<E> {
-    fn spawn_local<T: 'static>(
-        &self,
-        fut: impl Future<Output = T> + 'static,
-    ) -> async_task::Task<T> {
-        (**self).spawn_local(fut)
-    }
-}
-
-impl<E: Executor> Executor for &E {
-    fn spawn<T: Send + 'static>(
-        &self,
-        fut: impl Future<Output = T> + Send + 'static,
-    ) -> async_task::Task<T> {
-        (*self).spawn(fut)
-    }
-}
+use core::{
+    future::Future,
+    marker::PhantomData,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use alloc::boxed::Box;
-pub use async_task::*;
+use async_channel::Receiver;
+
+extern crate alloc;
+
+pub trait Executor: Send + Sync {
+    type Task<T: Send + 'static>: Task<T> + Send;
+
+    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    where
+        Fut: Future<Output: Send> + Send + 'static;
+}
+
+pub trait LocalExecutor {
+    type Task<T: 'static>: Task<T>;
+
+    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    where
+        Fut: Future + 'static;
+}
+
+trait AnyLocalExecutorImpl {
+    fn spawn_boxed(
+        &self,
+        fut: Pin<Box<dyn Future<Output = ()>>>,
+    ) -> Pin<Box<dyn Task<()> + 'static>>;
+}
+
+impl<E> AnyLocalExecutorImpl for E
+where
+    E: LocalExecutor + 'static,
+{
+    fn spawn_boxed(
+        &self,
+        fut: Pin<Box<dyn Future<Output = ()>>>,
+    ) -> Pin<Box<dyn Task<()> + 'static>> {
+        let task = self.spawn(fut);
+        Box::pin(task)
+    }
+}
+
+pub struct AnyLocalExecutor(Box<dyn AnyLocalExecutorImpl>);
+
+pub struct AnyLocalExecutorTask<T> {
+    inner: Pin<Box<dyn Task<()> + 'static>>,
+    receiver: Receiver<Result<T, Error>>,
+}
+
+impl<T> Future for AnyLocalExecutorTask<T> {
+    type Output = T;
+
+    fn poll(
+        self: Pin<&mut Self>,
+        cx: &mut core::task::Context<'_>,
+    ) -> core::task::Poll<Self::Output> {
+        self.poll_result(cx).map(|res| res.unwrap())
+    }
+}
+
+impl<T> Task<T> for AnyLocalExecutorTask<T> {
+    fn poll_result(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, Error>> {
+        let mut recv = self.receiver.recv();
+        unsafe {
+            Pin::new_unchecked(&mut recv)
+                .poll(cx)
+                .map(|res| res.unwrap())
+        }
+    }
+    fn poll_cancel(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        let this = unsafe { self.get_unchecked_mut() };
+        this.inner.as_mut().poll_cancel(cx)
+    }
+}
+
+impl LocalExecutor for AnyLocalExecutor {
+    type Task<T: 'static> = AnyLocalExecutorTask<T>;
+
+    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    where
+        Fut: Future + 'static,
+    {
+        let (sender, receiver) = async_channel::bounded(1);
+        let fut = async move {
+            let res = fut.await;
+            let _ = sender.send(Ok(res)).await;
+        };
+        let inner = self.0.spawn_boxed(Box::pin(fut));
+        AnyLocalExecutorTask { inner, receiver }
+    }
+}
+
+type Error = Box<dyn core::any::Any + Send>;
+
+pub trait Task<T>: Future<Output = T> {
+    fn poll_result(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, Error>>;
+    fn poll_cancel(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()>;
+
+    fn result(self) -> impl Future<Output = Result<T, Error>>
+    where
+        Self: Sized,
+    {
+        ResultFuture {
+            task: self,
+            _phantom: PhantomData,
+        }
+    }
+
+    fn cancel(self) -> impl Future<Output = ()>
+    where
+        Self: Sized,
+    {
+        CancelFuture {
+            task: self,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+pub struct ResultFuture<T: Task<U>, U> {
+    task: T,
+    _phantom: PhantomData<U>,
+}
+
+impl<T: Task<U>, U> Future for ResultFuture<T, U> {
+    type Output = Result<U, Error>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = unsafe { self.get_unchecked_mut() };
+        unsafe { Pin::new_unchecked(&mut this.task) }.poll_result(cx)
+    }
+}
+
+pub struct CancelFuture<T: Task<U>, U> {
+    task: T,
+    _phantom: PhantomData<U>,
+}
+
+impl<T: Task<U>, U> Future for CancelFuture<T, U> {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = unsafe { self.get_unchecked_mut() };
+        unsafe { Pin::new_unchecked(&mut this.task) }.poll_cancel(cx)
+    }
+}
+
+pub struct AnyExecutor(Box<dyn AnyExecutorImpl>);
+
+pub struct AnyExecutorTask<T> {
+    inner: Pin<Box<dyn Task<()> + Send>>,
+    receiver: Receiver<Result<T, Error>>,
+}
+
+impl<T: Send> Future for AnyExecutorTask<T> {
+    type Output = T;
+
+    fn poll(
+        self: Pin<&mut Self>,
+        cx: &mut core::task::Context<'_>,
+    ) -> core::task::Poll<Self::Output> {
+        self.poll_result(cx).map(|res| res.unwrap())
+    }
+}
+
+impl<T: Send> Task<T> for AnyExecutorTask<T> {
+    fn poll_result(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, Error>> {
+        let mut recv = self.receiver.recv();
+        unsafe {
+            Pin::new_unchecked(&mut recv)
+                .poll(cx)
+                .map(|res| res.unwrap())
+        }
+    }
+    fn poll_cancel(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        let this = unsafe { self.get_unchecked_mut() };
+        this.inner.as_mut().poll_cancel(cx)
+    }
+}
+
+impl Executor for AnyExecutor {
+    type Task<T: Send + 'static> = AnyExecutorTask<T>;
+
+    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    where
+        Fut: Future<Output: Send> + Send + 'static,
+    {
+        let (sender, receiver) = async_channel::bounded(1);
+        let fut = async move {
+            let res = fut.await;
+            let _ = sender.send(Ok(res)).await;
+        };
+        let inner = self.0.spawn_boxed(Box::pin(fut));
+        AnyExecutorTask { inner, receiver }
+    }
+}
+
+trait AnyExecutorImpl: Send + Sync + 'static {
+    fn spawn_boxed(
+        &self,
+        fut: Pin<Box<dyn Future<Output = ()> + Send>>,
+    ) -> Pin<Box<dyn Task<()> + Send>>;
+}
+
+impl<T: Task<T>> Task<T> for Pin<Box<T>> {
+    fn poll_result(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, Error>> {
+        let this = unsafe { self.get_unchecked_mut() };
+        this.as_mut().poll_result(cx)
+    }
+    fn poll_cancel(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        let this = unsafe { self.get_unchecked_mut() };
+
+        this.as_mut().poll_cancel(cx)
+    }
+}
+
+impl<E> AnyExecutorImpl for E
+where
+    E: Executor + 'static,
+{
+    fn spawn_boxed(
+        &self,
+        fut: Pin<Box<dyn Future<Output = ()> + Send>>,
+    ) -> Pin<Box<dyn Task<()> + Send>> {
+        let task = self.spawn(fut);
+        Box::pin(task)
+    }
+}
+
+mod std_on {
+    use alloc::boxed::Box;
+
+    use crate::{AnyExecutorTask, AnyLocalExecutor, AnyLocalExecutorTask, Executor, LocalExecutor};
+
+    extern crate std;
+
+    use core::{cell::RefCell, panic::AssertUnwindSafe};
+    use std::sync::RwLock;
+    std::thread_local! {
+        static LOCAL_EXECUTOR: RefCell<Option<AnyLocalExecutor>> = const { RefCell::new(None) };
+    }
+    pub fn set_local_executor(executor: impl LocalExecutor + 'static) {
+        LOCAL_EXECUTOR.with(|cell| {
+            *cell.borrow_mut() = Some(AnyLocalExecutor(Box::new(executor)));
+        });
+    }
+
+    static GLOBAL_EXECUTOR: RwLock<Option<crate::AnyExecutor>> = RwLock::new(None);
+
+    pub fn set_global_executor(executor: impl crate::Executor + 'static) {
+        let any_executor = crate::AnyExecutor(Box::new(executor));
+        let _ = Box::leak(std::boxed::Box::new(any_executor));
+    }
+
+    pub fn spawn<Fut>(fut: Fut) -> AnyExecutorTask<Fut::Output>
+    where
+        Fut: Future<Output: Send> + Send + 'static,
+    {
+        let guard = GLOBAL_EXECUTOR.read().unwrap();
+        let executor = guard.as_ref().expect("Global executor not set");
+        executor.spawn(fut)
+    }
+
+    pub fn spawn_local<Fut>(fut: Fut) -> AnyLocalExecutorTask<Fut::Output>
+    where
+        Fut: Future + 'static,
+    {
+        LOCAL_EXECUTOR.with(|cell| {
+            let executor = cell.borrow();
+            let executor = executor.as_ref().expect("Local executor not set");
+            executor.spawn(fut)
+        })
+    }
+
+    pub(crate) fn catch_unwind<F, R>(f: F) -> Result<R, Box<dyn std::any::Any + Send>>
+    where
+        F: FnOnce() -> R,
+    {
+        std::panic::catch_unwind(AssertUnwindSafe(f))
+    }
+}
+
+pub use std_on::*;
+
+// Re-export executors and tasks
+pub use async_executor::AsyncTask;
+
+#[cfg(feature = "tokio")]
+pub use tokio::{DefaultExecutor, TokioLocalTask, TokioTask};
+
+#[cfg(feature = "web")]
+pub use web::{WebExecutor, WebTask};

@@ -17,6 +17,7 @@ features = ["async-executor", "tokio", "std", "web"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+async-channel = { version = "2.5.0", default-features = false }
 async-task = "4.7"
 pin-project-lite = "0.2.16"
 
@@ -37,7 +38,7 @@ version = "0.4.5"
 optional = true
 
 [features]
-default = []
+default = ["async-executor","tokio","web"]
 std = []
 async-executor = ["dep:async-executor", "std"]
 tokio = ["dep:tokio", "std"]
