@@ -36,7 +36,7 @@ use wasm_bindgen_futures::spawn_local;
 /// let task1 = Executor::spawn(&executor, async { 42 });
 /// let task2 = LocalExecutor::spawn(&executor, async { "hello" });
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug)]
 pub struct WebExecutor;
 
 impl WebExecutor {
@@ -61,12 +61,21 @@ pub struct WebTask<T> {
     inner: ManuallyDrop<Option<async_task::Task<T>>>,
 }
 
+impl<T> core::fmt::Debug for WebTask<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("WebTask").finish_non_exhaustive()
+    }
+}
+
 impl<T> Future for WebTask<T> {
     type Output = T;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut this = self.as_mut();
-        let task = this.inner.as_mut().expect("Task has already been cancelled");
+        let task = this
+            .inner
+            .as_mut()
+            .expect("Task has already been cancelled");
         // In web environments, we can't catch panics, so just poll directly
         let mut pinned_task = core::pin::pin!(task);
         pinned_task.as_mut().poll(cx)
@@ -79,7 +88,10 @@ impl<T: 'static> Task<T> for WebTask<T> {
         cx: &mut Context<'_>,
     ) -> Poll<Result<T, crate::Error>> {
         let mut this = self.as_mut();
-        let task = this.inner.as_mut().expect("Task has already been cancelled");
+        let task = this
+            .inner
+            .as_mut()
+            .expect("Task has already been cancelled");
         // In web environments, we can't catch panics
         // If the task panics, the entire WASM module will terminate
         let mut pinned_task = core::pin::pin!(task);
@@ -115,7 +127,9 @@ impl LocalExecutor for WebExecutor {
             });
         });
         runnable.schedule();
-        WebTask { inner: ManuallyDrop::new(Some(task)) }
+        WebTask {
+            inner: ManuallyDrop::new(Some(task)),
+        }
     }
 }
 
@@ -134,6 +148,8 @@ impl Executor for WebExecutor {
             });
         });
         runnable.schedule();
-        WebTask { inner: ManuallyDrop::new(Some(task)) }
+        WebTask {
+            inner: ManuallyDrop::new(Some(task)),
+        }
     }
 }

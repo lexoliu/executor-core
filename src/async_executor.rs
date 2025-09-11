@@ -25,6 +25,12 @@ where
 /// with the `async-executor` crate.
 pub struct AsyncTask<T>(ManuallyDrop<Option<async_task::Task<T>>>);
 
+impl<T> core::fmt::Debug for AsyncTask<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("AsyncTask").finish_non_exhaustive()
+    }
+}
+
 impl<T> From<async_task::Task<T>> for AsyncTask<T> {
     fn from(task: async_task::Task<T>) -> Self {
         Self(ManuallyDrop::new(Some(task)))

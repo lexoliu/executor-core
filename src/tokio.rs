@@ -38,7 +38,7 @@ use core::{
 /// });
 /// let result2 = task2.await;
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug)]
 pub struct DefaultExecutor;
 
 impl DefaultExecutor {
@@ -60,6 +60,12 @@ impl Default for DefaultExecutor {
 /// with Tokio's `spawn` function.
 pub struct TokioTask<T> {
     handle: tokio::task::JoinHandle<T>,
+}
+
+impl<T> core::fmt::Debug for TokioTask<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("TokioTask").finish_non_exhaustive()
+    }
 }
 
 impl<T: Send + 'static> Future for TokioTask<T> {
@@ -125,6 +131,12 @@ impl Executor for DefaultExecutor {
 /// with Tokio's `spawn_local` function.
 pub struct TokioLocalTask<T> {
     handle: tokio::task::JoinHandle<T>,
+}
+
+impl<T> core::fmt::Debug for TokioLocalTask<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("TokioLocalTask").finish_non_exhaustive()
+    }
 }
 
 impl<T: 'static> Future for TokioLocalTask<T> {
