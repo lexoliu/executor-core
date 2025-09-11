@@ -439,6 +439,20 @@ pub trait Task<T>: Future<Output = T> {
         }
     }
 
+    /// Detach the task, allowing it to run in the background without being awaited.
+    ///
+    /// Once detached, the task will continue running but its result cannot be retrieved.
+    /// This is useful for fire-and-forget operations where you don't need to wait for
+    /// or handle the result.
+    fn detach(self)
+    where
+        Self: Sized,
+    {
+        // Simply drop the task to detach it
+        // Just shut up compiler about unused self :)
+        core::mem::drop(self);
+    }
+
     /// Cancel the task.
     ///
     /// This method requests cancellation of the task and returns a future that
