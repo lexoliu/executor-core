@@ -330,6 +330,7 @@ mod tests {
         
         let _poll_result = Pin::new(&mut task).poll_result(&mut cx);
         
+        #[allow(clippy::drop_non_drop)]
         drop(task);
     }
 

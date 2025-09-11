@@ -308,7 +308,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_default_executor_default() {
-        let executor1 = DefaultExecutor::default();
+        let executor1 = DefaultExecutor::new();
         let executor2 = DefaultExecutor::new();
 
         let task1: TokioTask<i32> = Executor::spawn(&executor1, async { 1 });
