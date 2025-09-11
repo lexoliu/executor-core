@@ -3,7 +3,7 @@ name = "executor-core"
 version = "0.5.0"
 authors = ["Lexo Liu <me@lexo.cool>"]
 edition = "2024"
-description = "A flexible task executor abstraction layer for Rust async runtimes"
+description = "A zero-cost task executor abstraction layer for Rust async runtimes"
 repository = "https://github.com/lexoliu/executor-core"
 documentation = "https://docs.rs/executor-core"
 homepage = "https://github.com/lexoliu/executor-core"
@@ -12,14 +12,19 @@ keywords = ["async", "executor", "runtime", "futures", "tokio"]
 categories = ["asynchronous", "concurrency", "no-std"]
 readme = "README.md"
 
+[badges]
+maintenance = { status = "actively-developed" }
+license = { file = "LICENSE" }
+
+
 [package.metadata.docs.rs]
 features = ["async-executor", "tokio", "std", "web"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 async-channel = { version = "2.5.0", default-features = false }
-async-task = "4.7"
-pin-project-lite = "0.2.16"
+async-task = { version = "4.7", default-features = false}
+pin-project-lite = { version = "0.2", default-features = false}
 
 [dependencies.async-executor]
 version = "1.13.2"

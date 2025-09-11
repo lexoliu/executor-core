@@ -20,12 +20,12 @@
 //!
 //! ```
 //! use executor_core::{Executor, init_global_executor, spawn};
-//! use executor_core::tokio::DefaultExecutor;
+//! use executor_core::tokio::TokioExecutor;
 //!
 //! #[tokio::main]
 //! async fn main() {
 //!     // Initialize the global executor
-//!     init_global_executor(DefaultExecutor::new());
+//!     init_global_executor(TokioExecutor::new());
 //!
 //!     // Spawn a task
 //!     let task = spawn(async {
@@ -764,7 +764,7 @@ pub use async_executor::AsyncTask;
 // Re-export tokio types
 #[cfg(feature = "tokio")]
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
-pub use tokio::{DefaultExecutor, TokioLocalTask, TokioTask};
+pub use tokio::{TokioExecutor, TokioLocalTask, TokioTask};
 
 // Re-export web types
 #[cfg(feature = "web")]

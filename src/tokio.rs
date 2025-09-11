@@ -20,18 +20,18 @@ use core::{
 /// `spawn` and `spawn_local` functions respectively.
 ///
 #[derive(Clone, Copy, Debug)]
-pub struct GlobalExecutor;
+pub struct TokioExecutor;
 
 pub use tokio::{runtime::Runtime, task::JoinHandle, task::LocalSet};
 
-impl DefaultExecutor {
-    /// Create a new [`DefaultExecutor`].
+impl TokioExecutor {
+    /// Create a new [`TokioExecutor`].
     pub fn new() -> Self {
         Self
     }
 }
 
-impl Default for DefaultExecutor {
+impl Default for TokioExecutor {
     fn default() -> Self {
         Self::new()
     }
@@ -96,7 +96,7 @@ impl<T: Send + 'static> Task<T> for TokioTask<T> {
     }
 }
 
-impl Executor for DefaultExecutor {
+impl Executor for TokioExecutor {
     type Task<T: Send + 'static> = TokioTask<T>;
 
     fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
@@ -167,7 +167,7 @@ impl<T: 'static> Task<T> for TokioLocalTask<T> {
     }
 }
 
-impl LocalExecutor for DefaultExecutor {
+impl LocalExecutor for TokioExecutor {
     type Task<T: 'static> = TokioLocalTask<T>;
 
     fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
@@ -227,7 +227,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_default_executor_spawn() {
-        let executor = DefaultExecutor::new();
+        let executor = TokioExecutor::new();
         let task: TokioTask<i32> = Executor::spawn(&executor, async { 42 });
         let result = task.await;
         assert_eq!(result, 42);
@@ -235,7 +235,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_default_executor_spawn_async_operation() {
-        let executor = DefaultExecutor::new();
+        let executor = TokioExecutor::new();
         let task: TokioTask<&str> = Executor::spawn(&executor, async {
             sleep(Duration::from_millis(10)).await;
             "completed"
@@ -246,7 +246,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tokio_task_future_impl() {
-        let executor = DefaultExecutor::new();
+        let executor = TokioExecutor::new();
         let mut task: TokioTask<i32> = Executor::spawn(&executor, async { 100 });
 
         let waker = create_waker();
@@ -263,7 +263,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tokio_task_poll_result() {
-        let executor = DefaultExecutor::new();
+        let executor = TokioExecutor::new();
         let mut task: TokioTask<&str> = Executor::spawn(&executor, async { "success" });
 
         let waker = create_waker();
@@ -282,7 +282,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tokio_task_cancel() {
-        let executor = DefaultExecutor::new();
+        let executor = TokioExecutor::new();
         let mut task: TokioTask<&str> = Executor::spawn(&executor, async {
             sleep(Duration::from_secs(10)).await;
             "should be cancelled"
@@ -297,7 +297,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tokio_task_panic_handling() {
-        let executor = DefaultExecutor::new();
+        let executor = TokioExecutor::new();
         let task: TokioTask<()> = Executor::spawn(&executor, async {
             panic!("test panic");
         });
@@ -308,8 +308,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_default_executor_default() {
-        let executor1 = DefaultExecutor::new();
-        let executor2 = DefaultExecutor::new();
+        let executor1 = TokioExecutor::new();
+        let executor2 = TokioExecutor::new();
 
         let task1: TokioTask<i32> = Executor::spawn(&executor1, async { 1 });
         let task2: TokioTask<i32> = Executor::spawn(&executor2, async { 2 });
@@ -445,14 +445,14 @@ mod tests {
 
     #[test]
     fn test_default_executor_debug() {
-        let executor = DefaultExecutor::new();
+        let executor = TokioExecutor::new();
         let debug_str = format!("{:?}", executor);
-        assert!(debug_str.contains("DefaultExecutor"));
+        assert!(debug_str.contains("TokioExecutor"));
     }
 
     #[tokio::test]
     async fn test_task_result_future() {
-        let executor = DefaultExecutor::new();
+        let executor = TokioExecutor::new();
         let task: TokioTask<i32> = Executor::spawn(&executor, async { 123 });
 
         let result = task.result().await;
@@ -462,7 +462,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_task_cancel_future() {
-        let executor = DefaultExecutor::new();
+        let executor = TokioExecutor::new();
         let task: TokioTask<&str> = Executor::spawn(&executor, async {
             sleep(Duration::from_secs(10)).await;
             "cancelled"
@@ -473,7 +473,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_multiple_tasks_concurrency() {
-        let executor = DefaultExecutor::new();
+        let executor = TokioExecutor::new();
 
         let task1: TokioTask<i32> = Executor::spawn(&executor, async {
             sleep(Duration::from_millis(50)).await;
