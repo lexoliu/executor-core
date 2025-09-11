@@ -667,27 +667,6 @@ mod std_on {
         }
     }
 
-    /// Try to get the global executor without panicking.
-    ///
-    /// Returns `Some(&AnyExecutor)` if the global executor has been initialized,
-    /// `None` otherwise. This is a non-panicking version of [`get_global_executor`].
-    pub fn try_get_global_executor() -> Option<&'static AnyExecutor> {
-        GLOBAL_EXECUTOR.get()
-    }
-
-    /// Get the global executor.
-    ///
-    /// Returns a reference to the global executor that was previously set with
-    /// [`init_global_executor`].
-    ///
-    /// # Panics
-    ///
-    /// Panics if the global executor has not been set.
-    pub fn get_global_executor() -> &'static AnyExecutor {
-        try_get_global_executor()
-            .expect("Global executor not set. Did you forget to call init_global_executor?")
-    }
-
     /// Try to initialize the global executor for spawning Send futures.
     ///
     /// This is a non-panicking version of [`init_global_executor`].
@@ -743,6 +722,35 @@ mod std_on {
         F: FnOnce() -> R,
     {
         std::panic::catch_unwind(AssertUnwindSafe(f))
+    }
+
+    /// A default executor that uses the global and local executors.
+    ///
+    /// This executor delegates to the global executor for `Send` futures
+    /// and the local executor for non-`Send` futures.
+    #[derive(Clone, Copy, Debug)]
+    pub struct DefaultExecutor;
+
+    impl Executor for DefaultExecutor {
+        type Task<T: Send + 'static> = AnyExecutorTask<T>;
+
+        fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+        where
+            Fut: core::future::Future<Output: Send> + Send + 'static,
+        {
+            spawn(fut)
+        }
+    }
+
+    impl LocalExecutor for DefaultExecutor {
+        type Task<T: 'static> = AnyLocalExecutorTask<T>;
+
+        fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+        where
+            Fut: core::future::Future + 'static,
+        {
+            spawn_local(fut)
+        }
     }
 }
 

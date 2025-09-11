@@ -20,7 +20,7 @@ use core::{
 /// `spawn` and `spawn_local` functions respectively.
 ///
 #[derive(Clone, Copy, Debug)]
-pub struct DefaultExecutor;
+pub struct GlobalExecutor;
 
 pub use tokio::{runtime::Runtime, task::JoinHandle, task::LocalSet};
 
