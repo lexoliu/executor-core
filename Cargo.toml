@@ -18,13 +18,18 @@ license = { file = "LICENSE" }
 
 
 [package.metadata.docs.rs]
-features = ["async-executor", "tokio", "std", "web"]
+features = ["async-task", "async-executor", "tokio", "std", "web"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 async-channel = { version = "2.5.0", default-features = false }
-async-task = { version = "4.7", default-features = false}
 pin-project-lite = { version = "0.2", default-features = false}
+
+[dependencies.async-task]
+version = "4.7"
+default-features = false
+optional = true
+features = []
 
 [dependencies.async-executor]
 version = "1.13.2"
@@ -44,13 +49,14 @@ optional = true
 
 [features]
 default = []
-std = []
-async-executor = ["dep:async-executor", "std"]
+std = ["async-task?/std"]
+async-task = ["dep:async-task"]
+async-executor = ["dep:async-executor", "async-task", "std"]
 tokio = ["dep:tokio", "std"]
-web = ["dep:wasm-bindgen-futures"]
+web = ["dep:wasm-bindgen-futures", "async-task"]
 
 # Feature flag for enabling all compatible features
-full = ["std", "async-executor", "tokio"]
+full = ["std", "async-task", "async-executor", "tokio"]
 
 [dev-dependencies]
 tokio = { version = "1.45", features = [

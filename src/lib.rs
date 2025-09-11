@@ -18,7 +18,7 @@
 //!
 //! ## Quick Start
 //!
-//! ```
+//! ```rust
 //! use executor_core::{Executor, init_global_executor, spawn};
 //! use executor_core::tokio::TokioExecutor;
 //!
@@ -59,6 +59,10 @@
 #![no_std]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_docs, missing_debug_implementations)]
+
+#[cfg(feature = "async-task")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async-task")))]
+pub mod async_task;
 
 #[cfg(feature = "async-executor")]
 #[cfg_attr(docsrs, doc(cfg(feature = "async-executor")))]
@@ -769,18 +773,3 @@ mod std_on {
 }
 
 pub use std_on::*;
-
-// Re-export async-executor types
-#[cfg(feature = "async-executor")]
-#[cfg_attr(docsrs, doc(cfg(feature = "async-executor")))]
-pub use async_executor::AsyncTask;
-
-// Re-export tokio types
-#[cfg(feature = "tokio")]
-#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
-pub use tokio::{TokioExecutor, TokioLocalTask, TokioTask};
-
-// Re-export web types
-#[cfg(feature = "web")]
-#[cfg_attr(docsrs, doc(cfg(feature = "web")))]
-pub use web::{WebExecutor, WebTask};
