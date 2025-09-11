@@ -170,7 +170,7 @@ impl<T: 'static> Task<T> for TokioLocalTask<T> {
 impl LocalExecutor for TokioExecutor {
     type Task<T: 'static> = TokioLocalTask<T>;
 
-    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    fn spawn_local<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
     where
         Fut: Future + 'static,
     {
@@ -194,7 +194,7 @@ impl Executor for tokio::runtime::Runtime {
 impl LocalExecutor for tokio::task::LocalSet {
     type Task<T: 'static> = TokioLocalTask<T>;
 
-    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    fn spawn_local<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
     where
         Fut: Future + 'static,
     {
@@ -333,7 +333,7 @@ mod tests {
         local_set
             .run_until(async {
                 let task: TokioLocalTask<&str> =
-                    LocalExecutor::spawn(&local_set, async { "local task" });
+                    LocalExecutor::spawn_local(&local_set, async { "local task" });
                 let result = task.await;
                 assert_eq!(result, "local task");
             })
@@ -346,7 +346,8 @@ mod tests {
 
         local_set
             .run_until(async {
-                let mut task: TokioLocalTask<i32> = LocalExecutor::spawn(&local_set, async { 200 });
+                let mut task: TokioLocalTask<i32> =
+                    LocalExecutor::spawn_local(&local_set, async { 200 });
 
                 let waker = create_waker();
                 let mut cx = Context::from_waker(&waker);
@@ -369,7 +370,7 @@ mod tests {
         local_set
             .run_until(async {
                 let mut task: TokioLocalTask<&str> =
-                    LocalExecutor::spawn(&local_set, async { "local success" });
+                    LocalExecutor::spawn_local(&local_set, async { "local success" });
 
                 let waker = create_waker();
                 let mut cx = Context::from_waker(&waker);
@@ -393,10 +394,11 @@ mod tests {
 
         local_set
             .run_until(async {
-                let mut task: TokioLocalTask<&str> = LocalExecutor::spawn(&local_set, async {
-                    sleep(Duration::from_secs(10)).await;
-                    "should be cancelled"
-                });
+                let mut task: TokioLocalTask<&str> =
+                    LocalExecutor::spawn_local(&local_set, async {
+                        sleep(Duration::from_secs(10)).await;
+                        "should be cancelled"
+                    });
 
                 let waker = create_waker();
                 let mut cx = Context::from_waker(&waker);
@@ -413,7 +415,7 @@ mod tests {
 
         local_set
             .run_until(async {
-                let task: TokioLocalTask<()> = LocalExecutor::spawn(&local_set, async {
+                let task: TokioLocalTask<()> = LocalExecutor::spawn_local(&local_set, async {
                     panic!("local panic");
                 });
 
@@ -437,7 +439,7 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         rt.block_on(local_set.run_until(async {
-            let task: TokioLocalTask<i32> = LocalExecutor::spawn(&local_set, async { 42 });
+            let task: TokioLocalTask<i32> = LocalExecutor::spawn_local(&local_set, async { 42 });
             let debug_str = format!("{:?}", task);
             assert!(debug_str.contains("TokioLocalTask"));
         }));

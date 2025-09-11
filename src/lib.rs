@@ -180,7 +180,7 @@ pub trait LocalExecutor {
     ///
     /// The future must be `'static` but does not need to be `Send`.
     /// Returns a [`Task`] that can be awaited to get the result.
-    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    fn spawn_local<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
     where
         Fut: Future + 'static;
 }
@@ -188,60 +188,60 @@ pub trait LocalExecutor {
 impl<E: LocalExecutor> LocalExecutor for &E {
     type Task<T: 'static> = E::Task<T>;
 
-    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    fn spawn_local<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
     where
         Fut: Future + 'static,
     {
-        (*self).spawn(fut)
+        (*self).spawn_local(fut)
     }
 }
 
 impl<E: LocalExecutor> LocalExecutor for &mut E {
     type Task<T: 'static> = E::Task<T>;
 
-    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    fn spawn_local<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
     where
         Fut: Future + 'static,
     {
-        (**self).spawn(fut)
+        (**self).spawn_local(fut)
     }
 }
 
 impl<E: LocalExecutor> LocalExecutor for Box<E> {
     type Task<T: 'static> = E::Task<T>;
 
-    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    fn spawn_local<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
     where
         Fut: Future + 'static,
     {
-        (**self).spawn(fut)
+        (**self).spawn_local(fut)
     }
 }
 
 impl<E: LocalExecutor> LocalExecutor for alloc::rc::Rc<E> {
     type Task<T: 'static> = E::Task<T>;
 
-    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    fn spawn_local<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
     where
         Fut: Future + 'static,
     {
-        (**self).spawn(fut)
+        (**self).spawn_local(fut)
     }
 }
 
 impl<E: LocalExecutor> LocalExecutor for alloc::sync::Arc<E> {
     type Task<T: 'static> = E::Task<T>;
 
-    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    fn spawn_local<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
     where
         Fut: Future + 'static,
     {
-        (**self).spawn(fut)
+        (**self).spawn_local(fut)
     }
 }
 
 trait AnyLocalExecutorImpl: 'static + Any {
-    fn spawn_boxed(
+    fn spawn_local_boxed(
         &self,
         fut: Pin<Box<dyn Future<Output = ()>>>,
     ) -> Pin<Box<dyn Task<()> + 'static>>;
@@ -251,11 +251,11 @@ impl<E> AnyLocalExecutorImpl for E
 where
     E: LocalExecutor + 'static,
 {
-    fn spawn_boxed(
+    fn spawn_local_boxed(
         &self,
         fut: Pin<Box<dyn Future<Output = ()>>>,
     ) -> Pin<Box<dyn Task<()> + 'static>> {
-        let task = self.spawn(fut);
+        let task = self.spawn_local(fut);
         Box::pin(task)
     }
 }
@@ -385,7 +385,7 @@ impl<T> Task<T> for AnyLocalExecutorTask<T> {
 impl LocalExecutor for AnyLocalExecutor {
     type Task<T: 'static> = AnyLocalExecutorTask<T>;
 
-    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    fn spawn_local<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
     where
         Fut: Future + 'static,
     {
@@ -394,7 +394,7 @@ impl LocalExecutor for AnyLocalExecutor {
             let res = AssertUnwindSafe(fut).await;
             let _ = sender.send(Ok(res)).await;
         };
-        let inner = self.0.spawn_boxed(Box::pin(fut));
+        let inner = self.0.spawn_local_boxed(Box::pin(fut));
         AnyLocalExecutorTask { inner, receiver }
     }
 }
@@ -712,7 +712,7 @@ mod std_on {
     {
         LOCAL_EXECUTOR.with(|cell| {
             let executor = cell.get().expect("Local executor not set");
-            executor.spawn(fut)
+            executor.spawn_local(fut)
         })
     }
 
@@ -745,7 +745,7 @@ mod std_on {
     impl LocalExecutor for DefaultExecutor {
         type Task<T: 'static> = AnyLocalExecutorTask<T>;
 
-        fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+        fn spawn_local<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
         where
             Fut: core::future::Future + 'static,
         {

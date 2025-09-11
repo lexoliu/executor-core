@@ -105,7 +105,7 @@ impl<T: 'static> Task<T> for WebTask<T> {
 impl LocalExecutor for WebExecutor {
     type Task<T: 'static> = WebTask<T>;
 
-    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    fn spawn_local<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
     where
         Fut: Future + 'static,
     {
