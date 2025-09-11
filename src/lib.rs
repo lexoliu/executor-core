@@ -18,7 +18,7 @@
 //!
 //! ## Quick Start
 //!
-//! ```ignore
+//! ```
 //! use executor_core::{Executor, init_global_executor, spawn};
 //! use executor_core::tokio::DefaultExecutor;
 //!
@@ -164,19 +164,6 @@ where
 ///
 /// This allows for runtime selection of executors and storing different executor
 /// types in the same collection.
-///
-/// # Examples
-///
-/// ```ignore
-/// use executor_core::{AnyLocalExecutor, LocalExecutor};
-/// use executor_core::tokio::DefaultExecutor;
-///
-/// let executor = DefaultExecutor::new();
-/// let any_executor = AnyLocalExecutor::new(executor);
-///
-/// let task = any_executor.spawn(async { "Hello from any executor!" });
-/// let result = task.await;
-/// ```
 pub struct AnyLocalExecutor(Box<dyn AnyLocalExecutorImpl>);
 
 impl Debug for AnyLocalExecutor {
@@ -193,19 +180,6 @@ impl Debug for AnyExecutor {
 
 impl AnyExecutor {
     /// Create a new [`AnyExecutor`] wrapping the given executor.
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// use executor_core::{AnyExecutor, Executor};
-    /// use executor_core::tokio::DefaultExecutor;
-    ///
-    /// let executor = DefaultExecutor::new();
-    /// let any_executor = AnyExecutor::new(executor);
-    ///
-    /// let task = any_executor.spawn(async { 42 });
-    /// let result = task.await;
-    /// ```
     pub fn new(executor: impl Executor + 'static) -> Self {
         Self(Box::new(executor))
     }
@@ -213,21 +187,6 @@ impl AnyExecutor {
     /// Attempt to downcast to a concrete executor type by reference.
     ///
     /// Returns `Some(&E)` if the underlying executor is of type `E`, `None` otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// use executor_core::{AnyExecutor, Executor};
-    /// use executor_core::tokio::DefaultExecutor;
-    ///
-    /// let executor = DefaultExecutor::new();
-    /// let any_executor = AnyExecutor::new(executor);
-    ///
-    /// // Try to get back the original executor type
-    /// if let Some(tokio_executor) = any_executor.downcast_ref::<DefaultExecutor>() {
-    ///     println!("Got back the DefaultExecutor!");
-    /// }
-    /// ```
     pub fn downcast_ref<E: Executor + 'static>(&self) -> Option<&E> {
         let any: &dyn Any = self.0.as_ref();
 
@@ -238,22 +197,6 @@ impl AnyExecutor {
     ///
     /// Returns `Ok(Box<E>)` if the underlying executor is of type `E`,
     /// `Err(Self)` otherwise (returning the original `AnyExecutor`).
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// use executor_core::{AnyExecutor, Executor};
-    /// use executor_core::tokio::DefaultExecutor;
-    ///
-    /// let executor = DefaultExecutor::new();
-    /// let any_executor = AnyExecutor::new(executor);
-    ///
-    /// // Try to get back the original executor type
-    /// match any_executor.downcast::<DefaultExecutor>() {
-    ///     Ok(original_executor) => println!("Successfully downcast to DefaultExecutor"),
-    ///     Err(any_executor) => println!("Downcast failed, got back AnyExecutor"),
-    /// }
-    /// ```
     pub fn downcast<E: Executor + 'static>(self) -> Result<Box<E>, Self> {
         if (&self.0 as &dyn Any).is::<E>() {
             Ok((self.0 as Box<dyn Any>).downcast().ok().unwrap())
@@ -265,19 +208,6 @@ impl AnyExecutor {
 
 impl AnyLocalExecutor {
     /// Create a new [`AnyLocalExecutor`] wrapping the given local executor.
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// use executor_core::{AnyLocalExecutor, LocalExecutor};
-    /// use executor_core::tokio::DefaultExecutor;
-    ///
-    /// let executor = DefaultExecutor::new();
-    /// let any_executor = AnyLocalExecutor::new(executor);
-    ///
-    /// let task = any_executor.spawn(async { 42 });
-    /// let result = task.await;
-    /// ```
     pub fn new(executor: impl LocalExecutor + 'static) -> Self {
         Self(Box::new(executor))
     }
@@ -285,21 +215,6 @@ impl AnyLocalExecutor {
     /// Attempt to downcast to a concrete local executor type by reference.
     ///
     /// Returns `Some(&E)` if the underlying executor is of type `E`, `None` otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// use executor_core::{AnyLocalExecutor, LocalExecutor};
-    /// use executor_core::tokio::DefaultExecutor;
-    ///
-    /// let executor = DefaultExecutor::new();
-    /// let any_executor = AnyLocalExecutor::new(executor);
-    ///
-    /// // Try to get back the original executor type
-    /// if let Some(tokio_executor) = any_executor.downcast_ref::<DefaultExecutor>() {
-    ///     println!("Got back the DefaultExecutor!");
-    /// }
-    /// ```
     pub fn downcast_ref<E: LocalExecutor + 'static>(&self) -> Option<&E> {
         let any: &dyn Any = self.0.as_ref();
 
@@ -310,22 +225,6 @@ impl AnyLocalExecutor {
     ///
     /// Returns `Ok(Box<E>)` if the underlying executor is of type `E`,
     /// `Err(Self)` otherwise (returning the original `AnyLocalExecutor`).
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// use executor_core::{AnyLocalExecutor, LocalExecutor};
-    /// use executor_core::tokio::DefaultExecutor;
-    ///
-    /// let executor = DefaultExecutor::new();
-    /// let any_executor = AnyLocalExecutor::new(executor);
-    ///
-    /// // Try to get back the original executor type
-    /// match any_executor.downcast::<DefaultExecutor>() {
-    ///     Ok(original_executor) => println!("Successfully downcast to DefaultExecutor"),
-    ///     Err(any_executor) => println!("Downcast failed, got back AnyLocalExecutor"),
-    /// }
-    /// ```
     pub fn downcast<E: LocalExecutor + 'static>(self) -> Result<Box<E>, Self> {
         if (&self.0 as &dyn Any).is::<E>() {
             Ok((self.0 as Box<dyn Any>).downcast().ok().unwrap())
@@ -407,21 +306,6 @@ type Error = Box<dyn core::any::Any + Send>;
 /// - Task cancellation via [`poll_cancel`](Self::poll_cancel)
 /// - Convenience methods for getting results and cancelling
 ///
-/// # Examples
-///
-/// Basic usage:
-/// ```ignore
-/// use executor_core::{Executor, Task};
-/// use executor_core::tokio::DefaultExecutor;
-///
-/// let executor = DefaultExecutor::new();
-/// let task = executor.spawn(async { 42 });
-///
-/// // The task implements Future and can be awaited
-/// let result = task.await;
-/// ```
-///
-/// For error handling, see the [`result`](Self::result) method.
 pub trait Task<T>: Future<Output = T> {
     /// Poll the task for completion, returning a [`Result`] that can contain errors.
     ///
@@ -440,21 +324,6 @@ pub trait Task<T>: Future<Output = T> {
     /// This is equivalent to awaiting the task but returns a [`Result`] that
     /// allows you to handle panics and other errors explicitly.
     ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// use executor_core::{Executor, Task};
-    /// use executor_core::tokio::DefaultExecutor;
-    ///
-    /// let executor = DefaultExecutor::new();
-    /// let task = executor.spawn(async { 42 });
-    ///
-    /// // Get result with explicit error handling
-    /// match task.result().await {
-    ///     Ok(value) => println!("Success: {}", value),
-    ///     Err(error) => println!("Error: {:?}", error),
-    /// }
-    /// ```
     fn result(self) -> impl Future<Output = Result<T, Error>>
     where
         Self: Sized,
@@ -470,22 +339,6 @@ pub trait Task<T>: Future<Output = T> {
     /// This method requests cancellation of the task and returns a future that
     /// completes when the cancellation is finished.
     ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// use executor_core::{Executor, Task};
-    /// use executor_core::tokio::DefaultExecutor;
-    ///
-    /// let executor = DefaultExecutor::new();
-    /// let task = executor.spawn(async {
-    ///     // Long running task
-    ///     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-    ///     42
-    /// });
-    ///
-    /// // Request task cancellation
-    /// task.cancel().await;
-    /// ```
     fn cancel(self) -> impl Future<Output = ()>
     where
         Self: Sized,
@@ -551,18 +404,6 @@ impl<T: Task<U>, U> Future for CancelFuture<T, U> {
 /// This allows for runtime selection of executors and storing different executor
 /// types in the same collection.
 ///
-/// # Examples
-///
-/// ```ignore
-/// use executor_core::{AnyExecutor, Executor};
-/// use executor_core::tokio::DefaultExecutor;
-///
-/// let executor = DefaultExecutor::new();
-/// let any_executor = AnyExecutor::new(executor);
-///
-/// let task = any_executor.spawn(async { "Hello from any executor!" });
-/// let result = task.await;
-/// ```
 pub struct AnyExecutor(Box<dyn AnyExecutorImpl>);
 
 /// Task type returned by [`AnyExecutor`].
@@ -680,17 +521,6 @@ mod std_on {
     ///
     /// Panics if a local executor has already been set for this thread.
     ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// use executor_core::{init_local_executor, spawn_local};
-    /// use executor_core::tokio::DefaultExecutor;
-    ///
-    /// init_local_executor(DefaultExecutor::new());
-    ///
-    /// let task = spawn_local(async { 42 });
-    /// let result = task.await;
-    /// ```
     pub fn init_local_executor(executor: impl LocalExecutor + 'static) {
         if try_init_local_executor(executor).is_err() {
             panic!("Local executor already set for this thread");
@@ -721,17 +551,6 @@ mod std_on {
     ///
     /// Panics if a global executor has already been set.
     ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// use executor_core::{init_global_executor, spawn};
-    /// use executor_core::tokio::DefaultExecutor;
-    ///
-    /// init_global_executor(DefaultExecutor::new());
-    ///
-    /// let task = spawn(async { 42 });
-    /// let result = task.await;
-    /// ```
     pub fn init_global_executor(executor: impl crate::Executor + 'static) {
         if GLOBAL_EXECUTOR.set(AnyExecutor::new(executor)).is_err() {
             panic!("Global executor already set");
@@ -759,21 +578,6 @@ mod std_on {
     ///
     /// Panics if the global executor has not been set.
     ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// use executor_core::{init_global_executor, spawn};
-    /// use executor_core::tokio::DefaultExecutor;
-    ///
-    /// init_global_executor(DefaultExecutor::new());
-    ///
-    /// let task = spawn(async {
-    ///     println!("Hello from global executor!");
-    ///     42
-    /// });
-    ///
-    /// let result = task.await;
-    /// ```
     pub fn spawn<Fut>(fut: Fut) -> AnyExecutorTask<Fut::Output>
     where
         Fut: Future<Output: Send> + Send + 'static,
@@ -792,23 +596,6 @@ mod std_on {
     ///
     /// Panics if the local executor has not been set for this thread.
     ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// use executor_core::{init_local_executor, spawn_local};
-    /// use std::rc::Rc;
-    /// use executor_core::tokio::DefaultExecutor;
-    ///
-    /// init_local_executor(DefaultExecutor::new());
-    ///
-    /// let task = spawn_local(async {
-    ///     // This future is not Send due to Rc
-    ///     let local_data = Rc::new(42);
-    ///     *local_data
-    /// });
-    ///
-    /// let result = task.await;
-    /// ```
     pub fn spawn_local<Fut>(fut: Fut) -> AnyLocalExecutorTask<Fut::Output>
     where
         Fut: Future + 'static,

@@ -24,18 +24,6 @@ use wasm_bindgen_futures::spawn_local;
 /// If a spawned task panics, the entire WASM module will terminate. This is a fundamental
 /// limitation of the WASM environment and cannot be worked around.
 ///
-/// # Examples
-///
-/// ```ignore
-/// use executor_core::{Executor, LocalExecutor};
-/// use executor_core::web::WebExecutor;
-///
-/// let executor = WebExecutor::new();
-///
-/// // Use trait methods to disambiguate
-/// let task1 = Executor::spawn(&executor, async { 42 });
-/// let task2 = LocalExecutor::spawn(&executor, async { "hello" });
-/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct WebExecutor;
 

@@ -19,25 +19,6 @@ use core::{
 /// This executor can spawn both Send and non-Send futures using Tokio's
 /// `spawn` and `spawn_local` functions respectively.
 ///
-/// # Examples
-///
-/// ```ignore
-/// use executor_core::{Executor, LocalExecutor};
-/// use executor_core::tokio::DefaultExecutor;
-///
-/// let executor = DefaultExecutor::new();
-///
-/// // Spawn a Send future
-/// let task1 = executor.spawn(async { 42 });
-/// let result1 = task1.await;
-///
-/// // Spawn a non-Send future
-/// let task2 = executor.spawn(async {
-///     let local_data = std::rc::Rc::new(100);
-///     *local_data
-/// });
-/// let result2 = task2.await;
-/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct DefaultExecutor;
 
