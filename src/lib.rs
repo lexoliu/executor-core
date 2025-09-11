@@ -114,6 +114,50 @@ pub trait Executor: Send + Sync {
         Fut: Future<Output: Send> + Send + 'static;
 }
 
+impl<E: Executor> Executor for &E {
+    type Task<T: Send + 'static> = E::Task<T>;
+
+    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    where
+        Fut: Future<Output: Send> + Send + 'static,
+    {
+        (*self).spawn(fut)
+    }
+}
+
+impl<E: Executor> Executor for &mut E {
+    type Task<T: Send + 'static> = E::Task<T>;
+
+    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    where
+        Fut: Future<Output: Send> + Send + 'static,
+    {
+        (**self).spawn(fut)
+    }
+}
+
+impl<E: Executor> Executor for Box<E> {
+    type Task<T: Send + 'static> = E::Task<T>;
+
+    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    where
+        Fut: Future<Output: Send> + Send + 'static,
+    {
+        (**self).spawn(fut)
+    }
+}
+
+impl<E: Executor> Executor for alloc::sync::Arc<E> {
+    type Task<T: Send + 'static> = E::Task<T>;
+
+    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    where
+        Fut: Future<Output: Send> + Send + 'static,
+    {
+        (**self).spawn(fut)
+    }
+}
+
 /// A trait for spawning `'static` futures that may not be `Send`.
 ///
 /// This trait is for executors that can spawn futures that don't need to be `Send`,
@@ -139,6 +183,61 @@ pub trait LocalExecutor {
     fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
     where
         Fut: Future + 'static;
+}
+
+impl<E: LocalExecutor> LocalExecutor for &E {
+    type Task<T: 'static> = E::Task<T>;
+
+    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    where
+        Fut: Future + 'static,
+    {
+        (*self).spawn(fut)
+    }
+}
+
+impl<E: LocalExecutor> LocalExecutor for &mut E {
+    type Task<T: 'static> = E::Task<T>;
+
+    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    where
+        Fut: Future + 'static,
+    {
+        (**self).spawn(fut)
+    }
+}
+
+impl<E: LocalExecutor> LocalExecutor for Box<E> {
+    type Task<T: 'static> = E::Task<T>;
+
+    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    where
+        Fut: Future + 'static,
+    {
+        (**self).spawn(fut)
+    }
+}
+
+impl<E: LocalExecutor> LocalExecutor for alloc::rc::Rc<E> {
+    type Task<T: 'static> = E::Task<T>;
+
+    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    where
+        Fut: Future + 'static,
+    {
+        (**self).spawn(fut)
+    }
+}
+
+impl<E: LocalExecutor> LocalExecutor for alloc::sync::Arc<E> {
+    type Task<T: 'static> = E::Task<T>;
+
+    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    where
+        Fut: Future + 'static,
+    {
+        (**self).spawn(fut)
+    }
 }
 
 trait AnyLocalExecutorImpl: 'static + Any {
@@ -566,6 +665,27 @@ mod std_on {
         if GLOBAL_EXECUTOR.set(AnyExecutor::new(executor)).is_err() {
             panic!("Global executor already set");
         }
+    }
+
+    /// Try to get the global executor without panicking.
+    ///
+    /// Returns `Some(&AnyExecutor)` if the global executor has been initialized,
+    /// `None` otherwise. This is a non-panicking version of [`get_global_executor`].
+    pub fn try_get_global_executor() -> Option<&'static AnyExecutor> {
+        GLOBAL_EXECUTOR.get()
+    }
+
+    /// Get the global executor.
+    ///
+    /// Returns a reference to the global executor that was previously set with
+    /// [`init_global_executor`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if the global executor has not been set.
+    pub fn get_global_executor() -> &'static AnyExecutor {
+        try_get_global_executor()
+            .expect("Global executor not set. Did you forget to call init_global_executor?")
     }
 
     /// Try to initialize the global executor for spawning Send futures.
