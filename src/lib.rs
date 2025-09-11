@@ -58,6 +58,7 @@
 
 #![no_std]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![warn(missing_docs, missing_debug_implementations)]
 
 #[cfg(feature = "async-executor")]
 #[cfg_attr(docsrs, doc(cfg(feature = "async-executor")))]
@@ -72,6 +73,7 @@ pub mod tokio;
 pub mod web;
 
 use core::{
+    any::Any,
     fmt::Debug,
     future::Future,
     marker::PhantomData,
@@ -138,7 +140,7 @@ pub trait LocalExecutor {
         Fut: Future + 'static;
 }
 
-trait AnyLocalExecutorImpl {
+trait AnyLocalExecutorImpl: 'static + Any {
     fn spawn_boxed(
         &self,
         fut: Pin<Box<dyn Future<Output = ()>>>,
@@ -207,6 +209,20 @@ impl AnyExecutor {
     pub fn new(executor: impl Executor + 'static) -> Self {
         Self(Box::new(executor))
     }
+
+    pub fn downcast_ref<E: Executor + 'static>(&self) -> Option<&E> {
+        let any: &dyn Any = self.0.as_ref();
+
+        any.downcast_ref()
+    }
+
+    pub fn downcast<E: Executor + 'static>(self) -> Result<Box<E>, Self> {
+        if (&self.0 as &dyn Any).is::<E>() {
+            Ok((self.0 as Box<dyn Any>).downcast().ok().unwrap())
+        } else {
+            Err(self)
+        }
+    }
 }
 
 impl AnyLocalExecutor {
@@ -226,6 +242,20 @@ impl AnyLocalExecutor {
     /// ```
     pub fn new(executor: impl LocalExecutor + 'static) -> Self {
         Self(Box::new(executor))
+    }
+
+    pub fn downcast_ref<E: LocalExecutor + 'static>(&self) -> Option<&E> {
+        let any: &dyn Any = self.0.as_ref();
+
+        any.downcast_ref()
+    }
+
+    pub fn downcast<E: LocalExecutor + 'static>(self) -> Result<Box<E>, Self> {
+        if (&self.0 as &dyn Any).is::<E>() {
+            Ok((self.0 as Box<dyn Any>).downcast().ok().unwrap())
+        } else {
+            Err(self)
+        }
     }
 }
 
@@ -478,7 +508,7 @@ impl Executor for AnyExecutor {
     }
 }
 
-trait AnyExecutorImpl: Send + Sync + 'static {
+trait AnyExecutorImpl: Send + Sync + Any {
     fn spawn_boxed(
         &self,
         fut: Pin<Box<dyn Future<Output = ()> + Send>>,
@@ -547,10 +577,22 @@ mod std_on {
     /// let result = task.await;
     /// ```
     pub fn init_local_executor(executor: impl LocalExecutor + 'static) {
+        if try_init_local_executor(executor).is_err() {
+            panic!("Local executor already set for this thread");
+        }
+    }
+
+    /// Try to initialize the thread-local executor for spawning non-Send futures.
+    ///
+    /// This is a non-panicking version of [`init_local_executor`].
+    pub fn try_init_local_executor<E>(executor: E) -> Result<(), E>
+    where
+        E: LocalExecutor + 'static,
+    {
         LOCAL_EXECUTOR.with(|cell| {
             cell.set(AnyLocalExecutor::new(executor))
-                .expect("Local executor already set");
-        });
+                .map_err(|e| *e.downcast().unwrap())
+        })
     }
 
     static GLOBAL_EXECUTOR: OnceLock<AnyExecutor> = OnceLock::new();
@@ -576,9 +618,21 @@ mod std_on {
     /// let result = task.await;
     /// ```
     pub fn init_global_executor(executor: impl crate::Executor + 'static) {
+        if GLOBAL_EXECUTOR.set(AnyExecutor::new(executor)).is_err() {
+            panic!("Global executor already set");
+        }
+    }
+
+    /// Try to initialize the global executor for spawning Send futures.
+    ///
+    /// This is a non-panicking version of [`init_global_executor`].
+    pub fn try_init_global_executor<E>(executor: E) -> Result<(), E>
+    where
+        E: crate::Executor + 'static,
+    {
         GLOBAL_EXECUTOR
             .set(AnyExecutor::new(executor))
-            .expect("Global executor already set");
+            .map_err(|e| *e.downcast().unwrap())
     }
 
     /// Spawn a `Send` future on the global executor.
