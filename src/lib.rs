@@ -210,12 +210,50 @@ impl AnyExecutor {
         Self(Box::new(executor))
     }
 
+    /// Attempt to downcast to a concrete executor type by reference.
+    ///
+    /// Returns `Some(&E)` if the underlying executor is of type `E`, `None` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use executor_core::{AnyExecutor, Executor};
+    /// use executor_core::tokio::DefaultExecutor;
+    ///
+    /// let executor = DefaultExecutor::new();
+    /// let any_executor = AnyExecutor::new(executor);
+    ///
+    /// // Try to get back the original executor type
+    /// if let Some(tokio_executor) = any_executor.downcast_ref::<DefaultExecutor>() {
+    ///     println!("Got back the DefaultExecutor!");
+    /// }
+    /// ```
     pub fn downcast_ref<E: Executor + 'static>(&self) -> Option<&E> {
         let any: &dyn Any = self.0.as_ref();
 
         any.downcast_ref()
     }
 
+    /// Attempt to downcast to a concrete executor type by value.
+    ///
+    /// Returns `Ok(Box<E>)` if the underlying executor is of type `E`,
+    /// `Err(Self)` otherwise (returning the original `AnyExecutor`).
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use executor_core::{AnyExecutor, Executor};
+    /// use executor_core::tokio::DefaultExecutor;
+    ///
+    /// let executor = DefaultExecutor::new();
+    /// let any_executor = AnyExecutor::new(executor);
+    ///
+    /// // Try to get back the original executor type
+    /// match any_executor.downcast::<DefaultExecutor>() {
+    ///     Ok(original_executor) => println!("Successfully downcast to DefaultExecutor"),
+    ///     Err(any_executor) => println!("Downcast failed, got back AnyExecutor"),
+    /// }
+    /// ```
     pub fn downcast<E: Executor + 'static>(self) -> Result<Box<E>, Self> {
         if (&self.0 as &dyn Any).is::<E>() {
             Ok((self.0 as Box<dyn Any>).downcast().ok().unwrap())
@@ -244,12 +282,50 @@ impl AnyLocalExecutor {
         Self(Box::new(executor))
     }
 
+    /// Attempt to downcast to a concrete local executor type by reference.
+    ///
+    /// Returns `Some(&E)` if the underlying executor is of type `E`, `None` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use executor_core::{AnyLocalExecutor, LocalExecutor};
+    /// use executor_core::tokio::DefaultExecutor;
+    ///
+    /// let executor = DefaultExecutor::new();
+    /// let any_executor = AnyLocalExecutor::new(executor);
+    ///
+    /// // Try to get back the original executor type
+    /// if let Some(tokio_executor) = any_executor.downcast_ref::<DefaultExecutor>() {
+    ///     println!("Got back the DefaultExecutor!");
+    /// }
+    /// ```
     pub fn downcast_ref<E: LocalExecutor + 'static>(&self) -> Option<&E> {
         let any: &dyn Any = self.0.as_ref();
 
         any.downcast_ref()
     }
 
+    /// Attempt to downcast to a concrete local executor type by value.
+    ///
+    /// Returns `Ok(Box<E>)` if the underlying executor is of type `E`,
+    /// `Err(Self)` otherwise (returning the original `AnyLocalExecutor`).
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use executor_core::{AnyLocalExecutor, LocalExecutor};
+    /// use executor_core::tokio::DefaultExecutor;
+    ///
+    /// let executor = DefaultExecutor::new();
+    /// let any_executor = AnyLocalExecutor::new(executor);
+    ///
+    /// // Try to get back the original executor type
+    /// match any_executor.downcast::<DefaultExecutor>() {
+    ///     Ok(original_executor) => println!("Successfully downcast to DefaultExecutor"),
+    ///     Err(any_executor) => println!("Downcast failed, got back AnyLocalExecutor"),
+    /// }
+    /// ```
     pub fn downcast<E: LocalExecutor + 'static>(self) -> Result<Box<E>, Self> {
         if (&self.0 as &dyn Any).is::<E>() {
             Ok((self.0 as Box<dyn Any>).downcast().ok().unwrap())
@@ -259,9 +335,21 @@ impl AnyLocalExecutor {
     }
 }
 
+/// Task type returned by [`AnyLocalExecutor`].
+///
+/// This task can be awaited like any other task and provides the same
+/// cancellation and error handling capabilities as other task implementations.
+/// It wraps tasks from any [`LocalExecutor`] implementation in a type-erased manner.
 pub struct AnyLocalExecutorTask<T> {
     inner: Pin<Box<dyn Task<()> + 'static>>,
     receiver: Receiver<Result<T, Error>>,
+}
+
+impl<T> core::fmt::Debug for AnyLocalExecutorTask<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("AnyLocalExecutorTask")
+            .finish_non_exhaustive()
+    }
 }
 
 impl<T> Future for AnyLocalExecutorTask<T> {
@@ -409,9 +497,19 @@ pub trait Task<T>: Future<Output = T> {
     }
 }
 
+/// Future returned by [`Task::result()`].
+///
+/// This future resolves to a `Result<T, Error>` when the underlying task completes,
+/// allowing explicit handling of task panics and other errors without propagating them.
 pub struct ResultFuture<T: Task<U>, U> {
     task: T,
     _phantom: PhantomData<U>,
+}
+
+impl<T: Task<U>, U> core::fmt::Debug for ResultFuture<T, U> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ResultFuture").finish_non_exhaustive()
+    }
 }
 
 impl<T: Task<U>, U> Future for ResultFuture<T, U> {
@@ -423,9 +521,20 @@ impl<T: Task<U>, U> Future for ResultFuture<T, U> {
     }
 }
 
+/// Future returned by [`Task::cancel()`].
+///
+/// This future resolves when the underlying task cancellation is complete.
+/// The future completes regardless of whether the task was successfully cancelled
+/// or had already finished.
 pub struct CancelFuture<T: Task<U>, U> {
     task: T,
     _phantom: PhantomData<U>,
+}
+
+impl<T: Task<U>, U> core::fmt::Debug for CancelFuture<T, U> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("CancelFuture").finish_non_exhaustive()
+    }
 }
 
 impl<T: Task<U>, U> Future for CancelFuture<T, U> {
@@ -463,6 +572,12 @@ pub struct AnyExecutor(Box<dyn AnyExecutorImpl>);
 pub struct AnyExecutorTask<T> {
     inner: Pin<Box<dyn Task<()> + Send>>,
     receiver: Receiver<Result<T, Error>>,
+}
+
+impl<T> core::fmt::Debug for AnyExecutorTask<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("AnyExecutorTask").finish_non_exhaustive()
+    }
 }
 
 impl<T: Send> Future for AnyExecutorTask<T> {
