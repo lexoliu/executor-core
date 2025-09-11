@@ -79,7 +79,7 @@ pub mod web;
 use core::{
     any::Any,
     fmt::Debug,
-    future::Future,
+    future::{Future, poll_fn},
     marker::PhantomData,
     panic::AssertUnwindSafe,
     pin::Pin,
@@ -282,6 +282,28 @@ impl Debug for AnyExecutor {
     }
 }
 
+impl<T> dyn Task<T> {
+    /// Cancel the boxed task.
+    ///
+    /// This method requests cancellation of the task and awaits until
+    /// the cancellation is complete.
+    pub async fn cancel(self: Box<Self>) {
+        let mut pinned: Pin<Box<Self>> = self.into();
+
+        poll_fn(move |cx| pinned.as_mut().poll_cancel(cx)).await;
+    }
+
+    /// Get the result of the boxed task, including any errors that occurred.
+    ///
+    /// This method awaits the task completion and returns a [`Result`] that
+    /// allows you to handle panics and other errors explicitly.
+    pub async fn result(self: Box<Self>) -> Result<T, Error> {
+        let mut pinned: Pin<Box<Self>> = self.into();
+
+        poll_fn(move |cx| pinned.as_mut().poll_result(cx)).await
+    }
+}
+
 impl AnyExecutor {
     /// Create a new [`AnyExecutor`] wrapping the given executor.
     pub fn new(executor: impl Executor + 'static) -> Self {
@@ -348,6 +370,28 @@ pub struct AnyLocalExecutorTask<T> {
     receiver: Receiver<Result<T, Error>>,
 }
 
+impl<T> AnyLocalExecutorTask<T> {
+    /// Create a new `AnyLocalExecutorTask` wrapping the given inner task and receiver.
+    fn new(inner: Pin<Box<dyn Task<()> + 'static>>, receiver: Receiver<Result<T, Error>>) -> Self {
+        Self { inner, receiver }
+    }
+
+    /// Get the result of the task, including any errors that occurred.
+    pub async fn result(self) -> Result<T, Error> {
+        <Self as Task<T>>::result(self).await
+    }
+
+    /// Cancel the task.
+    pub async fn cancel(self) {
+        <Self as Task<T>>::cancel(self).await
+    }
+
+    /// Detach the task, allowing it to run in the background without being awaited.
+    pub fn detach(self) {
+        <Self as Task<T>>::detach(self)
+    }
+}
+
 impl<T> core::fmt::Debug for AnyLocalExecutorTask<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("AnyLocalExecutorTask")
@@ -399,7 +443,7 @@ impl LocalExecutor for AnyLocalExecutor {
             let _ = sender.send(Ok(res)).await;
         };
         let inner = self.0.spawn_local_boxed(Box::pin(fut));
-        AnyLocalExecutorTask { inner, receiver }
+        AnyLocalExecutorTask::new(inner, receiver)
     }
 }
 
@@ -538,6 +582,33 @@ pub struct AnyExecutorTask<T> {
     receiver: Receiver<Result<T, Error>>,
 }
 
+impl<T: Send> AnyExecutorTask<T> {
+    /// Create a new `AnyExecutorTask` wrapping the given inner task and receiver.
+    fn new(inner: Pin<Box<dyn Task<()> + Send>>, receiver: Receiver<Result<T, Error>>) -> Self {
+        Self { inner, receiver }
+    }
+
+    /// Get the result of the task, including any errors that occurred.
+    ///
+    /// This is equivalent to awaiting the task but returns a [`Result`] that
+    /// allows you to handle panics and other errors explicitly.
+    pub async fn result(self) -> Result<T, Error> {
+        <Self as Task<T>>::result(self).await
+    }
+
+    /// Cancel the task.
+    ///
+    /// This method requests cancellation of the task and awaits until
+    /// the cancellation is complete.
+    pub async fn cancel(self) {
+        <Self as Task<T>>::cancel(self).await
+    }
+    /// Detach the task, allowing it to run in the background without being awaited.
+    pub fn detach(self) {
+        <Self as Task<T>>::detach(self)
+    }
+}
+
 impl<T> core::fmt::Debug for AnyExecutorTask<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("AnyExecutorTask").finish_non_exhaustive()
@@ -588,7 +659,7 @@ impl Executor for AnyExecutor {
             let _ = sender.send(Ok(res)).await;
         };
         let inner = self.0.spawn_boxed(Box::pin(fut));
-        AnyExecutorTask { inner, receiver }
+        AnyExecutorTask::new(inner, receiver)
     }
 }
 

@@ -48,7 +48,7 @@ version = "0.4.5"
 optional = true
 
 [features]
-default = []
+default = ["std"]
 std = ["async-task?/std"]
 async-task = ["dep:async-task"]
 async-executor = ["dep:async-executor", "async-task", "std"]
