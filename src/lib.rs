@@ -48,6 +48,13 @@
 //! - **Task Management**: Rich task API with cancellation and error handling
 //! - **No-std Compatible**: Core functionality works in no-std environments
 //! - **Panic Safety**: Proper panic handling and propagation
+//!
+//! ## Lifetime Constraints
+//!
+//! The current API requires `'static` lifetimes for both futures and their outputs.
+//! This constraint comes from the underlying async runtimes and ensures memory safety
+//! when tasks may outlive their spawning scope. While this limits flexibility, it
+//! matches the constraints of most async runtime implementations in Rust.
 
 #![no_std]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -82,20 +89,17 @@ extern crate alloc;
 /// This trait is implemented by runtime-agnostic executors that can spawn futures
 /// across thread boundaries. The spawned futures must be `Send` and `'static`.
 ///
-/// # Examples
+/// The `'static` lifetime requirements come from the underlying async runtimes
+/// (like Tokio) which need to ensure memory safety when tasks are moved across
+/// threads and may outlive their spawning scope.
 ///
-/// See the concrete implementations in the feature-specific modules:
-#[cfg_attr(
-    feature = "tokio",
-    doc = "- [`tokio::DefaultExecutor`] for Tokio runtime integration"
-)]
-#[cfg_attr(
-    feature = "async-executor",
-    doc = "- `async_executor::Executor` with [`AsyncTask`] wrapper"
-)]
+/// See [AnyExecutor] for a type-erased executor.
 #[cfg_attr(feature = "web", doc = "- [`web::WebExecutor`] for WASM environments")]
 pub trait Executor: Send + Sync {
     /// The task type returned by [`spawn`](Self::spawn).
+    ///
+    /// The `T: Send + 'static` constraint ensures the task output can be safely
+    /// sent across thread boundaries and doesn't contain any borrowed data.
     type Task<T: Send + 'static>: Task<T> + Send;
 
     /// Spawn a future that will run to completion.
@@ -112,20 +116,17 @@ pub trait Executor: Send + Sync {
 /// This trait is for executors that can spawn futures that don't need to be `Send`,
 /// typically single-threaded executors or local task spawners.
 ///
-/// # Examples
+/// The `'static` lifetime requirements come from the underlying async runtimes
+/// which need to ensure memory safety when tasks may outlive their spawning scope,
+/// even in single-threaded contexts.
 ///
-/// See the concrete implementations in the feature-specific modules:
-#[cfg_attr(
-    feature = "tokio",
-    doc = "- [`tokio::DefaultExecutor`] for Tokio runtime integration"
-)]
-#[cfg_attr(
-    feature = "async-executor",
-    doc = "- `async_executor::LocalExecutor` with [`AsyncTask`] wrapper"
-)]
+/// See [AnyLocalExecutor] for a type-erased local executor.
 #[cfg_attr(feature = "web", doc = "- [`web::WebExecutor`] for WASM environments")]
 pub trait LocalExecutor {
     /// The task type returned by [`spawn`](Self::spawn).
+    ///
+    /// The `T: 'static` constraint ensures the task output doesn't contain
+    /// any borrowed data that could become invalid.
     type Task<T: 'static>: Task<T>;
 
     /// Spawn a future that will run to completion on the local executor.
