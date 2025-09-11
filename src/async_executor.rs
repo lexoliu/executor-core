@@ -35,7 +35,6 @@ mod tests {
     #[cfg(feature = "std")]
     extern crate std;
 
-    use super::*;
     use crate::{Executor, LocalExecutor, Task, async_task::AsyncTask};
     use alloc::task::Wake;
     use alloc::{format, sync::Arc};

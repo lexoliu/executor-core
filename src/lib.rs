@@ -624,6 +624,7 @@ where
     }
 }
 
+#[cfg(feature = "std")]
 mod std_on {
     use alloc::boxed::Box;
 
@@ -772,4 +773,5 @@ mod std_on {
     }
 }
 
+#[cfg(feature = "std")]
 pub use std_on::*;

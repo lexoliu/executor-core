@@ -1,6 +1,6 @@
 [package]
 name = "executor-core"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Lexo Liu <me@lexo.cool>"]
 edition = "2024"
 description = "A zero-cost task executor abstraction layer for Rust async runtimes"
