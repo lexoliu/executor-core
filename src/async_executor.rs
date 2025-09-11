@@ -6,6 +6,8 @@
 use crate::{Executor, LocalExecutor, Task};
 use core::{future::Future, mem::ManuallyDrop, pin::pin, task::Poll};
 
+pub use async_executor::{Executor as AsyncExecutor, LocalExecutor as AsyncLocalExecutor};
+
 #[cfg(feature = "std")]
 use crate::catch_unwind;
 

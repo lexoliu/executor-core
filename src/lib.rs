@@ -77,6 +77,7 @@ use core::{
     fmt::Debug,
     future::Future,
     marker::PhantomData,
+    panic::AssertUnwindSafe,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -264,11 +265,16 @@ impl<T> Future for AnyLocalExecutorTask<T> {
 
 impl<T> Task<T> for AnyLocalExecutorTask<T> {
     fn poll_result(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, Error>> {
-        let mut recv = self.receiver.recv();
+        // First, ensure the underlying task is being polled
+        let this = unsafe { self.get_unchecked_mut() };
+        let _ = this.inner.as_mut().poll(cx);
+
+        // Then poll the receiver
+        let mut recv = this.receiver.recv();
         unsafe {
             Pin::new_unchecked(&mut recv)
                 .poll(cx)
-                .map(|res| res.unwrap())
+                .map(|res| res.unwrap_or_else(|_| Err(Box::new("Channel closed"))))
         }
     }
     fn poll_cancel(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
@@ -286,7 +292,7 @@ impl LocalExecutor for AnyLocalExecutor {
     {
         let (sender, receiver) = async_channel::bounded(1);
         let fut = async move {
-            let res = fut.await;
+            let res = AssertUnwindSafe(fut).await;
             let _ = sender.send(Ok(res)).await;
         };
         let inner = self.0.spawn_boxed(Box::pin(fut));
@@ -434,11 +440,16 @@ impl<T: Send> Future for AnyExecutorTask<T> {
 
 impl<T: Send> Task<T> for AnyExecutorTask<T> {
     fn poll_result(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, Error>> {
-        let mut recv = self.receiver.recv();
+        // First, ensure the underlying task is being polled
+        let this = unsafe { self.get_unchecked_mut() };
+        let _ = this.inner.as_mut().poll(cx);
+
+        // Then poll the receiver
+        let mut recv = this.receiver.recv();
         unsafe {
             Pin::new_unchecked(&mut recv)
                 .poll(cx)
-                .map(|res| res.unwrap())
+                .map(|res| res.unwrap_or_else(|_| Err(Box::new("Channel closed"))))
         }
     }
     fn poll_cancel(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
@@ -456,7 +467,7 @@ impl Executor for AnyExecutor {
     {
         let (sender, receiver) = async_channel::bounded(1);
         let fut = async move {
-            let res = fut.await;
+            let res = AssertUnwindSafe(fut).await;
             let _ = sender.send(Ok(res)).await;
         };
         let inner = self.0.spawn_boxed(Box::pin(fut));

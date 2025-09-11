@@ -22,6 +22,8 @@ use core::{
 #[derive(Clone, Copy, Debug)]
 pub struct DefaultExecutor;
 
+pub use tokio::{runtime::Runtime, task::JoinHandle, task::LocalSet};
+
 impl DefaultExecutor {
     /// Create a new [`DefaultExecutor`].
     pub fn new() -> Self {
