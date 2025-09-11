@@ -1,3 +1,8 @@
+//! Integration with the Tokio async runtime.
+//!
+//! This module provides implementations of the [`Executor`] and [`LocalExecutor`] traits
+//! for the Tokio runtime, along with task wrappers that provide panic safety.
+
 #[cfg(feature = "std")]
 extern crate std;
 
@@ -9,11 +14,35 @@ use core::{
     task::{Context, Poll},
 };
 
-/// Tokio-based executor implementation
+/// The default Tokio-based executor implementation.
+///
+/// This executor can spawn both Send and non-Send futures using Tokio's
+/// `spawn` and `spawn_local` functions respectively.
+///
+/// # Examples
+///
+/// ```ignore
+/// use executor_core::{Executor, LocalExecutor};
+/// use executor_core::tokio::DefaultExecutor;
+///
+/// let executor = DefaultExecutor::new();
+///
+/// // Spawn a Send future
+/// let task1 = executor.spawn(async { 42 });
+/// let result1 = task1.await;
+///
+/// // Spawn a non-Send future
+/// let task2 = executor.spawn(async {
+///     let local_data = std::rc::Rc::new(100);
+///     *local_data
+/// });
+/// let result2 = task2.await;
+/// ```
 #[derive(Clone)]
 pub struct DefaultExecutor;
 
 impl DefaultExecutor {
+    /// Create a new [`DefaultExecutor`].
     pub fn new() -> Self {
         Self
     }
@@ -25,7 +54,10 @@ impl Default for DefaultExecutor {
     }
 }
 
-/// Task wrapper for tokio JoinHandle
+/// Task wrapper for Tokio's `JoinHandle` that implements the [`Task`] trait.
+///
+/// This provides panic safety and proper error handling for tasks spawned
+/// with Tokio's `spawn` function.
 pub struct TokioTask<T> {
     handle: tokio::task::JoinHandle<T>,
 }
@@ -87,7 +119,10 @@ impl Executor for DefaultExecutor {
     }
 }
 
-/// Task wrapper for tokio local JoinHandle (non-Send futures)
+/// Task wrapper for Tokio's local `JoinHandle` (non-Send futures).
+///
+/// This provides panic safety and proper error handling for tasks spawned
+/// with Tokio's `spawn_local` function.
 pub struct TokioLocalTask<T> {
     handle: tokio::task::JoinHandle<T>,
 }

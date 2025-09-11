@@ -38,7 +38,7 @@ version = "0.4.5"
 optional = true
 
 [features]
-default = ["async-executor","tokio","web"]
+default = []
 std = []
 async-executor = ["dep:async-executor", "std"]
 tokio = ["dep:tokio", "std"]

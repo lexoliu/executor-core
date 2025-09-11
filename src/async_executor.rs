@@ -1,6 +1,28 @@
-use crate::{Executor, LocalExecutor, Task, catch_unwind};
+//! Integration with the `async-executor` crate.
+//!
+//! This module provides implementations of the [`Executor`] and [`LocalExecutor`] traits
+//! for the `async-executor` crate, along with the [`AsyncTask`] wrapper.
+
+use crate::{Executor, LocalExecutor, Task};
 use core::{future::Future, mem::ManuallyDrop, pin::pin, task::Poll};
 
+#[cfg(feature = "std")]
+use crate::catch_unwind;
+
+#[cfg(not(feature = "std"))]
+fn catch_unwind<F, R>(f: F) -> Result<R, crate::Error>
+where
+    F: FnOnce() -> R,
+{
+    // In no-std environments (like WASM), we can't catch panics
+    // so we just execute the function directly
+    Ok(f())
+}
+
+/// A task wrapper for `async_task::Task` that implements the [`Task`] trait.
+///
+/// This provides panic safety and proper error handling for tasks spawned
+/// with the `async-executor` crate.
 pub struct AsyncTask<T>(ManuallyDrop<Option<async_task::Task<T>>>);
 
 impl<T> From<async_task::Task<T>> for AsyncTask<T> {
