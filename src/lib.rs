@@ -81,6 +81,8 @@ use core::{
     task::{Context, Poll},
 };
 
+pub mod mailbox;
+
 use alloc::boxed::Box;
 use async_channel::Receiver;
 
