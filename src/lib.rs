@@ -44,7 +44,6 @@
 //! - **Zero-cost Executor Abstraction**: Unified [`Executor`] and [`LocalExecutor`] traits
 //!   using Generic Associated Types (GAT) to prevent unnecessary heap allocation and dynamic dispatch
 //! - **Type Erasure**: [`AnyExecutor`] and [`AnyLocalExecutor`] for runtime flexibility
-//! - **Multiple Runtime Support**: Tokio, async-executor, Web/WASM
 //! - **Task Management**: Rich task API with cancellation and error handling
 //! - **No-std Compatible**: Core functionality works in no-std environments
 //! - **Panic Safety**: Proper panic handling and propagation
@@ -72,10 +71,6 @@ pub mod async_executor;
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 pub mod tokio;
 
-#[cfg(feature = "web")]
-#[cfg_attr(docsrs, doc(cfg(feature = "web")))]
-pub mod web;
-
 use core::{
     any::Any,
     fmt::Debug,
@@ -101,7 +96,6 @@ extern crate alloc;
 /// threads and may outlive their spawning scope.
 ///
 /// See [AnyExecutor] for a type-erased executor.
-#[cfg_attr(feature = "web", doc = "- [`web::WebExecutor`] for WASM environments")]
 pub trait Executor: Send + Sync {
     /// The task type returned by [`spawn`](Self::spawn).
     ///
@@ -172,7 +166,6 @@ impl<E: Executor> Executor for alloc::sync::Arc<E> {
 /// even in single-threaded contexts.
 ///
 /// See [AnyLocalExecutor] for a type-erased local executor.
-#[cfg_attr(feature = "web", doc = "- [`web::WebExecutor`] for WASM environments")]
 pub trait LocalExecutor {
     /// The task type returned by [`spawn`](Self::spawn).
     ///

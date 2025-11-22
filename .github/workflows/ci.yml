@@ -160,6 +160,3 @@ jobs:
         with:
           toolchain: stable
           targets: wasm32-unknown-unknown
-
-      - name: Check WASM build
-        run: cargo check --target wasm32-unknown-unknown --features web

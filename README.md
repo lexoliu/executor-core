@@ -20,7 +20,6 @@ Write async libraries without choosing a runtime. Your users should decide wheth
 - **Multiple Runtime Support**:
   - **Tokio**: Integration with Tokio runtime and LocalSet
   - **async-executor**: Support for async-executor crate
-  - **Web/WASM**: Browser-compatible executor for web applications
 - **Task Management**: Rich task API with cancellation and error handling
 - **No-std Compatible**: Core functionality works in no-std environments
 - **Panic Safety**: Proper panic handling and propagation
@@ -195,26 +194,11 @@ let executor = async_executor::Executor::new();
 let task: AsyncTask<_> = executor.spawn(async { "async-executor" });
 ```
 
-### Web/WASM
-
-```toml
-[dependencies]
-executor-core = { version = "0.3", features = ["web"] }
-```
-
-```rust
-use executor_core::web::WebExecutor;
-
-let executor = WebExecutor::new();
-let task = executor.spawn(async { "web task" });
-```
-
 ## Feature Flags
 
 - `std` - Enable std functionality (enabled by default)
 - `tokio` - Tokio runtime support (enabled by default)
 - `async-executor` - async-executor support (enabled by default)
-- `web` - Web/WASM support (enabled by default)
 - `full` - Enable all features
 
 ## Architecture

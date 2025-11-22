@@ -18,7 +18,7 @@ license = { file = "LICENSE" }
 
 
 [package.metadata.docs.rs]
-features = ["async-task", "async-executor", "tokio", "std", "web"]
+features = ["async-task", "async-executor", "tokio", "std"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
@@ -41,19 +41,12 @@ default-features = false
 features = ["rt", "rt-multi-thread"]
 optional = true
 
-# Dependencies for `web` backend
-
-[dependencies.wasm-bindgen-futures]
-version = "0.4.5"
-optional = true
-
 [features]
 default = ["full"]
 std = ["async-task?/std"]
 async-task = ["dep:async-task"]
 async-executor = ["dep:async-executor", "async-task", "std"]
 tokio = ["dep:tokio", "std"]
-web = ["dep:wasm-bindgen-futures", "async-task"]
 
 # Feature flag for enabling all compatible features
 full = ["std", "async-task", "async-executor", "tokio"]
