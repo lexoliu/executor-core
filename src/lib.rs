@@ -14,28 +14,26 @@
 //! Both traits produce tasks that implement the [`Task`] trait, providing:
 //! - [`Future`] implementation for awaiting results
 //! - [`Task::poll_result`] for explicit error handling
-//! - [`Task::poll_cancel`] for task cancellation
+//! - [`Task::detach`] for fire-and-forget tasks
 //!
 //! ## Quick Start
 //!
 //! ```rust
 //! use executor_core::{Executor, init_global_executor, spawn};
-//! use executor_core::tokio::TokioExecutor;
+//! use executor_core::tokio::Runtime;
 //!
-//! #[tokio::main]
-//! async fn main() {
-//!     // Initialize the global executor
-//!     init_global_executor(TokioExecutor::new());
+//! fn main() {
+//!     // Initialize the global executor using a Tokio runtime
+//!     let runtime = Runtime::new().expect("runtime");
+//!     let handle = runtime.handle().clone();
+//!     init_global_executor(runtime);
 //!
 //!     // Spawn a task
-//!     let task = spawn(async {
-//!         println!("Hello from spawned task!");
-//!         42
-//!     });
+//!     let task = spawn(async { 42 });
 //!
-//!     // The task can be awaited to get the result
-//!     let result = task.await;
-//!     println!("Task result: {}", result);
+//!     // Await it on the runtime
+//!     let result = handle.block_on(task);
+//!     assert_eq!(result, 42);
 //! }
 //! ```
 //!
@@ -44,7 +42,7 @@
 //! - **Zero-cost Executor Abstraction**: Unified [`Executor`] and [`LocalExecutor`] traits
 //!   using Generic Associated Types (GAT) to prevent unnecessary heap allocation and dynamic dispatch
 //! - **Type Erasure**: [`AnyExecutor`] and [`AnyLocalExecutor`] for runtime flexibility
-//! - **Task Management**: Rich task API with cancellation and error handling
+//! - **Task Management**: Panic-aware [`Task::result`] and background execution with [`Task::detach`]
 //! - **No-std Compatible**: Core functionality works in no-std environments
 //! - **Panic Safety**: Proper panic handling and propagation
 //!
@@ -428,14 +426,13 @@ impl LocalExecutor for AnyLocalExecutor {
 /// This represents panics or other unrecoverable errors from spawned tasks.
 type Error = Box<dyn core::any::Any + Send>;
 
-/// A trait representing a spawned task that can be awaited, cancelled, or queried for results.
+/// A trait representing a spawned task that can be awaited or queried for results.
 ///
 /// This trait extends [`Future`] with additional capabilities for task management:
 /// - Explicit error handling via [`poll_result`](Self::poll_result)
-/// - Task cancellation via [`poll_cancel`](Self::poll_cancel)
-/// - Convenience methods for getting results and cancelling
+/// - Convenience methods for getting results and detaching
 ///
-/// `Task` would be cancelled when dropped.
+/// Dropping a task cancels its execution.
 pub trait Task<T>: Future<Output = T> {
     /// Poll the task for completion, returning a [`Result`] that can contain errors.
     ///

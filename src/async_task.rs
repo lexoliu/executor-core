@@ -11,6 +11,7 @@ use core::{
     task::{Context, Poll},
 };
 
+use alloc::boxed::Box;
 pub use async_task::{Runnable, Task as RawTask};
 
 #[cfg(feature = "std")]
@@ -31,6 +32,18 @@ where
 /// This provides panic safety and proper error handling for tasks created
 /// with the `async-task` crate.
 pub struct AsyncTask<T>(async_task::Task<T>);
+
+impl<T> AsyncTask<T> {
+    /// Await the result of the task, returning a [`Result`].
+    pub async fn result(self) -> Result<T, Box<dyn core::any::Any + Send>> {
+        crate::Task::result(self).await
+    }
+
+    /// Cancel the task, waiting for it to finish cancelling.
+    pub async fn cancel(self) {
+        self.0.cancel().await;
+    }
+}
 
 impl<T> core::fmt::Debug for AsyncTask<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

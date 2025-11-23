@@ -67,19 +67,20 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-executor-core = "0.3"
+executor-core = "0.6"
 ```
 
-### Basic Usage
+### Basic Usage (Tokio)
 
 ```rust
 use executor_core::{Executor, init_global_executor, spawn};
-use executor_core::tokio::DefaultExecutor;
+use executor_core::tokio::Runtime;
 
-#[tokio::main]
-async fn main() {
+fn main() {
     // Initialize the global executor
-    init_global_executor(DefaultExecutor::new());
+    let runtime = Runtime::new().unwrap();
+    let handle = runtime.handle().clone();
+    init_global_executor(runtime);
 
     // Spawn a task
     let task = spawn(async {
@@ -87,7 +88,7 @@ async fn main() {
         42
     });
 
-    let result = task.await;
+    let result = handle.block_on(task);
     println!("Task result: {}", result);
 }
 ```
@@ -95,69 +96,68 @@ async fn main() {
 ### Using Different Executors
 
 ```rust
-use executor_core::{Executor, AnyExecutor};
+use executor_core::Executor;
 
 // Tokio executor
-let tokio_executor = executor_core::tokio::DefaultExecutor::new();
-let task = tokio_executor.spawn(async { "tokio result" });
+let runtime = tokio::runtime::Runtime::new()?;
+let tokio_task = Executor::spawn(&runtime, async { "tokio result" });
+let tokio_out = runtime.block_on(tokio_task);
 
-// Type-erased executor
-let any_executor = AnyExecutor::new(tokio_executor);
-let task = any_executor.spawn(async { "any executor result" });
+// async-executor
+let executor = async_executor::Executor::new();
+let async_task = Executor::spawn(&executor, async { "async-executor result" });
+let async_out = futures_lite::future::block_on(executor.run(async_task));
+
+// Type-erased executor for runtime-agnostic storage
+let any_executor = executor_core::AnyExecutor::new(runtime);
+let erased_task = any_executor.spawn(async { 99u8 });
 ```
 
 ### Local Executors (Non-Send Futures)
 
 ```rust
-use executor_core::{LocalExecutor, init_local_executor, spawn_local};
-use executor_core::tokio::DefaultExecutor;
+use executor_core::LocalExecutor;
+use executor_core::tokio::{LocalSet, Runtime};
 
-#[tokio::main]
-async fn main() {
-    // Initialize local executor
-    init_local_executor(DefaultExecutor::new());
+let runtime = Runtime::new().unwrap();
+let handle = runtime.handle().clone();
+let local_set = LocalSet::new();
 
-    let task = spawn_local(async {
+// Run the local executor inside the Tokio runtime
+let result = handle.block_on(local_set.run_until(async {
+    let task = LocalExecutor::spawn_local(&local_set, async {
         // This future doesn't need to be Send
         let local_data = std::rc::Rc::new(42);
         *local_data
     });
 
-    let result = task.await;
-    println!("Local task result: {}", result);
-}
+    task.await
+}));
+println!("Local task result: {}", result);
 ```
 
-### Task Cancellation
+### Error Handling & Background Work
 
 ```rust
-use executor_core::{Executor, Task};
+use executor_core::{Executor, init_global_executor, spawn, Task};
+use executor_core::tokio::Runtime;
 
-let executor = executor_core::tokio::DefaultExecutor::new();
-let task = executor.spawn(async {
-    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-    "completed"
-});
+let runtime = Runtime::new().unwrap();
+let handle = runtime.handle().clone();
+init_global_executor(runtime);
 
-// Cancel the task
-task.cancel().await;
-```
-
-### Error Handling
-
-```rust
-use executor_core::{Executor, Task};
-
-let executor = executor_core::tokio::DefaultExecutor::new();
-let task = executor.spawn(async {
+let task = spawn(async {
     panic!("Something went wrong!");
 });
 
-// Handle task result with error
-match task.result().await {
+match handle.block_on(task.result()) {
     Ok(value) => println!("Task completed: {}", value),
     Err(error) => println!("Task failed: {:?}", error),
 }
+
+// Detach when you don't need the result
+let fire_and_forget = spawn(async { 1 + 1 });
+fire_and_forget.detach();
 ```
 
 ## Runtime Support
@@ -166,32 +166,33 @@ match task.result().await {
 
 ```toml
 [dependencies]
-executor-core = { version = "0.3", features = ["tokio"] }
+executor-core = { version = "0.6", features = ["tokio"] }
 ```
 
 ```rust
-use executor_core::tokio::{DefaultExecutor, TokioTask, TokioLocalTask};
+use executor_core::tokio::TokioTask;
+use executor_core::Executor;
 
-// Global executor
-let executor = DefaultExecutor::new();
-
-// Or use Tokio runtime directly
+// Use Tokio runtime directly
 let runtime = tokio::runtime::Runtime::new().unwrap();
-let task = runtime.spawn(async { "direct runtime usage" });
+let task: TokioTask<_> = Executor::spawn(&runtime, async { "direct runtime usage" });
+let output = runtime.block_on(task);
 ```
 
 ### async-executor
 
 ```toml
 [dependencies]
-executor-core = { version = "0.3", features = ["async-executor"] }
+executor-core = { version = "0.6", features = ["async-executor"] }
 ```
 
 ```rust
 use executor_core::AsyncTask;
+use executor_core::Executor;
 
 let executor = async_executor::Executor::new();
-let task: AsyncTask<_> = executor.spawn(async { "async-executor" });
+let task: AsyncTask<_> = Executor::spawn(&executor, async { "async-executor" });
+let output = futures_lite::future::block_on(executor.run(task));
 ```
 
 ## Feature Flags
@@ -212,7 +213,7 @@ Both traits produce tasks that implement the `Task` trait, providing:
 
 - `Future` implementation for awaiting results
 - `poll_result()` for explicit error handling
-- `poll_cancel()` for task cancellation
+- `detach()` for background execution
 
 Type-erased versions (`AnyExecutor`, `AnyLocalExecutor`) allow runtime executor selection.
 
@@ -222,7 +223,7 @@ Core functionality works in `no-std` environments:
 
 ```toml
 [dependencies]
-executor-core = { version = "0.3", default-features = false }
+executor-core = { version = "0.6", default-features = false }
 ```
 
 ## Contributing
