@@ -242,6 +242,7 @@ trait AnyLocalExecutorImpl: 'static + Any {
         &self,
         fut: Pin<Box<dyn Future<Output = ()>>>,
     ) -> Pin<Box<dyn Task<()> + 'static>>;
+    fn as_any(&self) -> &dyn Any;
 }
 
 impl<E> AnyLocalExecutorImpl for E
@@ -254,6 +255,10 @@ where
     ) -> Pin<Box<dyn Task<()> + 'static>> {
         let task = self.spawn_local(fut);
         Box::pin(task)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -297,9 +302,7 @@ impl AnyExecutor {
     ///
     /// Returns `Some(&E)` if the underlying executor is of type `E`, `None` otherwise.
     pub fn downcast_ref<E: Executor + 'static>(&self) -> Option<&E> {
-        let any: &dyn Any = self.0.as_ref();
-
-        any.downcast_ref()
+        self.0.as_any().downcast_ref()
     }
 
     /// Attempt to downcast to a concrete executor type by value.
@@ -307,8 +310,12 @@ impl AnyExecutor {
     /// Returns `Ok(Box<E>)` if the underlying executor is of type `E`,
     /// `Err(Self)` otherwise (returning the original `AnyExecutor`).
     pub fn downcast<E: Executor + 'static>(self) -> Result<Box<E>, Self> {
-        if (&self.0 as &dyn Any).is::<E>() {
-            Ok((self.0 as Box<dyn Any>).downcast().ok().unwrap())
+        if let Some(executor) = self.0.as_any().downcast_ref::<E>() {
+            let ptr: *const E = executor;
+            // Safety: we just confirmed the type
+            let boxed: Box<E> = unsafe { Box::from_raw(ptr as *mut E) };
+            core::mem::forget(self);
+            Ok(boxed)
         } else {
             Err(self)
         }
@@ -325,9 +332,7 @@ impl AnyLocalExecutor {
     ///
     /// Returns `Some(&E)` if the underlying executor is of type `E`, `None` otherwise.
     pub fn downcast_ref<E: LocalExecutor + 'static>(&self) -> Option<&E> {
-        let any: &dyn Any = self.0.as_ref();
-
-        any.downcast_ref()
+        self.0.as_any().downcast_ref()
     }
 
     /// Attempt to downcast to a concrete local executor type by value.
@@ -335,8 +340,12 @@ impl AnyLocalExecutor {
     /// Returns `Ok(Box<E>)` if the underlying executor is of type `E`,
     /// `Err(Self)` otherwise (returning the original `AnyLocalExecutor`).
     pub fn downcast<E: LocalExecutor + 'static>(self) -> Result<Box<E>, Self> {
-        if (&self.0 as &dyn Any).is::<E>() {
-            Ok((self.0 as Box<dyn Any>).downcast().ok().unwrap())
+        if let Some(executor) = self.0.as_any().downcast_ref::<E>() {
+            let ptr: *const E = executor;
+            // Safety: type checked above
+            let boxed: Box<E> = unsafe { Box::from_raw(ptr as *mut E) };
+            core::mem::forget(self);
+            Ok(boxed)
         } else {
             Err(self)
         }
@@ -583,6 +592,7 @@ trait AnyExecutorImpl: Send + Sync + Any {
         &self,
         fut: Pin<Box<dyn Future<Output = ()> + Send>>,
     ) -> Pin<Box<dyn Task<()> + Send>>;
+    fn as_any(&self) -> &dyn Any;
 }
 
 impl<T: Task<T>> Task<T> for Pin<Box<T>> {
@@ -602,6 +612,10 @@ where
     ) -> Pin<Box<dyn Task<()> + Send>> {
         let task = self.spawn(fut);
         Box::pin(task)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

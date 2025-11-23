@@ -17,21 +17,28 @@
 //! ```rust
 //! # async fn docs() {
 //! use executor_core::mailbox::Mailbox;
+//! use executor_core::tokio::{LocalSet, Runtime};
 //! use std::{cell::RefCell, collections::HashMap};
 //!
-//! // Create a mailbox containing a HashMap on the main executor
-//! let mailbox = Mailbox::main(RefCell::new(HashMap::<String, i32>::new()));
+//! let runtime = Runtime::new().unwrap();
+//! let handle = runtime.handle().clone();
+//! let local = LocalSet::new();
 //!
-//! // Send updates to the value (non-blocking)
-//! mailbox.handle(|map| {
-//!     map.borrow_mut().insert("key".to_string(), 42);
-//! });
+//! handle.block_on(local.run_until(async {
+//!     // Create a mailbox containing a HashMap on the LocalSet
+//!     let mailbox = Mailbox::new(&local, RefCell::new(HashMap::<String, i32>::new()));
 //!
-//! // Make async calls that return values
-//! let value = mailbox.call(|map| {
-//!     map.borrow().get("key").copied().unwrap_or(0)
-//! }).await;
-//! # let _ = value;
+//!    // Send updates to the value (non-blocking)
+//!     mailbox.handle(|map| {
+//!         map.borrow_mut().insert("key".to_string(), 42);
+//!     });
+//!
+//!     // Make async calls that return values
+//!     let value = mailbox.call(|map| {
+//!         map.borrow().get("key").copied().unwrap_or(0)
+//!     }).await;
+//!     # let _ = value;
+//! }));
 //! # }
 //! ```
 
@@ -79,11 +86,20 @@ impl<T: 'static> Mailbox<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use executor_core::{mailbox::Mailbox, NativeExecutor};
+    /// use executor_core::mailbox::Mailbox;
+    /// use executor_core::tokio::{LocalSet, Runtime};
     /// use std::{cell::RefCell, collections::HashMap};
     ///
-    /// let mailbox = Mailbox::new(NativeExecutor, RefCell::new(HashMap::<String, i32>::new()));
-    /// # let _ = mailbox;
+    /// let runtime = Runtime::new().unwrap();
+    /// let handle = runtime.handle().clone();
+    /// let local = LocalSet::new();
+    ///
+    /// handle.block_on(local.run_until(async {
+    ///     let mailbox = Mailbox::new(&local, RefCell::new(HashMap::<String, i32>::new()));
+    ///     mailbox.handle(|map| {
+    ///         map.borrow_mut().insert("key".to_string(), 1);
+    ///     });
+    /// }));
     /// ```
     #[allow(clippy::needless_pass_by_value)]
     pub fn new<E: LocalExecutor>(executor: E, value: T) -> Self {
@@ -114,14 +130,19 @@ impl<T: 'static> Mailbox<T> {
     ///
     /// ```rust
     /// use executor_core::mailbox::Mailbox;
+    /// use executor_core::tokio::{LocalSet, Runtime};
     /// use std::{cell::RefCell, collections::HashMap};
     ///
-    /// let mailbox = Mailbox::main(RefCell::new(HashMap::<String, i32>::new()));
+    /// let runtime = Runtime::new().unwrap();
+    /// let handle = runtime.handle().clone();
+    /// let local = LocalSet::new();
     ///
-    /// // Send a non-blocking update
-    /// mailbox.handle(|map| {
-    ///     map.borrow_mut().insert("key".to_string(), 42);
-    /// });
+    /// handle.block_on(local.run_until(async {
+    ///     let mailbox = Mailbox::new(&local, RefCell::new(HashMap::<String, i32>::new()));
+    ///     mailbox.handle(|map| {
+    ///         map.borrow_mut().insert("key".to_string(), 42);
+    ///     });
+    /// }));
     /// ```
     pub fn handle(&self, update: impl FnOnce(&T) + Send + 'static) {
         let _ = self.sender.try_send(Box::new(update));
@@ -151,15 +172,21 @@ impl<T: 'static> Mailbox<T> {
     /// ```rust
     /// # async fn example() {
     /// use executor_core::mailbox::Mailbox;
+    /// use executor_core::tokio::{LocalSet, Runtime};
     /// use std::{cell::RefCell, collections::HashMap};
     ///
-    /// let mailbox = Mailbox::main(RefCell::new(HashMap::<String, i32>::new()));
+    /// let runtime = Runtime::new().unwrap();
+    /// let handle = runtime.handle().clone();
+    /// let local = LocalSet::new();
     ///
-    /// // Make an async call that returns a value
-    /// let value = mailbox.call(|map| {
-    ///     map.borrow().get("key").copied().unwrap_or(0)
-    /// }).await;
-    /// # let _ = value;
+    /// handle.block_on(local.run_until(async {
+    ///     let mailbox = Mailbox::new(&local, RefCell::new(HashMap::<String, i32>::new()));
+    ///
+    ///     let value = mailbox.call(|map| {
+    ///         map.borrow().get("key").copied().unwrap_or(0)
+    ///     }).await;
+    ///     # let _ = value;
+    /// }));
     /// # }
     /// ```
     pub async fn call<R>(&self, f: impl FnOnce(&T) -> R + Send + 'static) -> R

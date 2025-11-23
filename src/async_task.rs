@@ -7,6 +7,7 @@
 use crate::{Error, Task};
 use core::{
     future::Future,
+    panic::AssertUnwindSafe,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -67,23 +68,10 @@ impl<T> Future for AsyncTask<T> {
 
 impl<T> Task<T> for AsyncTask<T> {
     fn poll_result(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, Error>> {
-        match Pin::new(&mut self.0).poll(cx) {
-            Poll::Ready(value) => {
-                #[cfg(feature = "std")]
-                {
-                    // In std environments, we catch panics to return as errors
-                    match catch_unwind(|| value) {
-                        Ok(v) => Poll::Ready(Ok(v)),
-                        Err(error) => Poll::Ready(Err(error)),
-                    }
-                }
-                #[cfg(not(feature = "std"))]
-                {
-                    // In no-std environments, we can't catch panics
-                    Poll::Ready(Ok(value))
-                }
-            }
-            Poll::Pending => Poll::Pending,
+        match catch_unwind(AssertUnwindSafe(|| Pin::new(&mut self.0).poll(cx))) {
+            Ok(Poll::Ready(value)) => Poll::Ready(Ok(value)),
+            Ok(Poll::Pending) => Poll::Pending,
+            Err(error) => Poll::Ready(Err(error)),
         }
     }
 }
