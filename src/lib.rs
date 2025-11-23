@@ -278,16 +278,6 @@ impl Debug for AnyExecutor {
 }
 
 impl<T> dyn Task<T> {
-    /// Cancel the boxed task.
-    ///
-    /// This method requests cancellation of the task and awaits until
-    /// the cancellation is complete.
-    pub async fn cancel(self: Box<Self>) {
-        let mut pinned: Pin<Box<Self>> = self.into();
-
-        poll_fn(move |cx| pinned.as_mut().poll_cancel(cx)).await;
-    }
-
     /// Get the result of the boxed task, including any errors that occurred.
     ///
     /// This method awaits the task completion and returns a [`Result`] that
@@ -376,11 +366,6 @@ impl<T> AnyLocalExecutorTask<T> {
         <Self as Task<T>>::result(self).await
     }
 
-    /// Cancel the task.
-    pub async fn cancel(self) {
-        <Self as Task<T>>::cancel(self).await
-    }
-
     /// Detach the task, allowing it to run in the background without being awaited.
     pub fn detach(self) {
         <Self as Task<T>>::detach(self)
@@ -419,10 +404,6 @@ impl<T> Task<T> for AnyLocalExecutorTask<T> {
                 .map(|res| res.unwrap_or_else(|_| Err(Box::new("Channel closed"))))
         }
     }
-    fn poll_cancel(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        let this = unsafe { self.get_unchecked_mut() };
-        this.inner.as_mut().poll_cancel(cx)
-    }
 }
 
 impl LocalExecutor for AnyLocalExecutor {
@@ -454,18 +435,13 @@ type Error = Box<dyn core::any::Any + Send>;
 /// - Task cancellation via [`poll_cancel`](Self::poll_cancel)
 /// - Convenience methods for getting results and cancelling
 ///
+/// `Task` would be cancelled when dropped.
 pub trait Task<T>: Future<Output = T> {
     /// Poll the task for completion, returning a [`Result`] that can contain errors.
     ///
     /// Unlike the [`Future::poll`] implementation, this method allows you to handle
     /// task panics and other errors explicitly rather than propagating them.
     fn poll_result(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, Error>>;
-
-    /// Poll for task cancellation.
-    ///
-    /// This method attempts to cancel the task and returns [`Poll::Ready`] when
-    /// the cancellation is complete.
-    fn poll_cancel(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()>;
 
     /// Get the result of the task, including any errors that occurred.
     ///
@@ -491,24 +467,7 @@ pub trait Task<T>: Future<Output = T> {
     where
         Self: Sized,
     {
-        // Simply drop the task to detach it
-        // Just shut up compiler about unused self :)
-        core::mem::drop(self);
-    }
-
-    /// Cancel the task.
-    ///
-    /// This method requests cancellation of the task and returns a future that
-    /// completes when the cancellation is finished.
-    ///
-    fn cancel(self) -> impl Future<Output = ()>
-    where
-        Self: Sized,
-    {
-        CancelFuture {
-            task: self,
-            _phantom: PhantomData,
-        }
+        core::mem::forget(self);
     }
 }
 
@@ -533,31 +492,6 @@ impl<T: Task<U>, U> Future for ResultFuture<T, U> {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = unsafe { self.get_unchecked_mut() };
         unsafe { Pin::new_unchecked(&mut this.task) }.poll_result(cx)
-    }
-}
-
-/// Future returned by [`Task::cancel()`].
-///
-/// This future resolves when the underlying task cancellation is complete.
-/// The future completes regardless of whether the task was successfully cancelled
-/// or had already finished.
-pub struct CancelFuture<T: Task<U>, U> {
-    task: T,
-    _phantom: PhantomData<U>,
-}
-
-impl<T: Task<U>, U> core::fmt::Debug for CancelFuture<T, U> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("CancelFuture").finish_non_exhaustive()
-    }
-}
-
-impl<T: Task<U>, U> Future for CancelFuture<T, U> {
-    type Output = ();
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = unsafe { self.get_unchecked_mut() };
-        unsafe { Pin::new_unchecked(&mut this.task) }.poll_cancel(cx)
     }
 }
 
@@ -591,13 +525,6 @@ impl<T: Send> AnyExecutorTask<T> {
         <Self as Task<T>>::result(self).await
     }
 
-    /// Cancel the task.
-    ///
-    /// This method requests cancellation of the task and awaits until
-    /// the cancellation is complete.
-    pub async fn cancel(self) {
-        <Self as Task<T>>::cancel(self).await
-    }
     /// Detach the task, allowing it to run in the background without being awaited.
     pub fn detach(self) {
         <Self as Task<T>>::detach(self)
@@ -635,10 +562,6 @@ impl<T: Send> Task<T> for AnyExecutorTask<T> {
                 .map(|res| res.unwrap_or_else(|_| Err(Box::new("Channel closed"))))
         }
     }
-    fn poll_cancel(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        let this = unsafe { self.get_unchecked_mut() };
-        this.inner.as_mut().poll_cancel(cx)
-    }
 }
 
 impl Executor for AnyExecutor {
@@ -669,11 +592,6 @@ impl<T: Task<T>> Task<T> for Pin<Box<T>> {
     fn poll_result(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, Error>> {
         let this = unsafe { self.get_unchecked_mut() };
         this.as_mut().poll_result(cx)
-    }
-    fn poll_cancel(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        let this = unsafe { self.get_unchecked_mut() };
-
-        this.as_mut().poll_cancel(cx)
     }
 }
 

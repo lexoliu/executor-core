@@ -67,11 +67,11 @@ impl<T: Send + 'static> Task<T> for TokioTask<T> {
             Poll::Pending => Poll::Pending,
         }
     }
+}
 
-    fn poll_cancel(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<()> {
-        let this = unsafe { self.get_unchecked_mut() };
-        this.handle.abort();
-        Poll::Ready(())
+impl<T> Drop for TokioTask<T> {
+    fn drop(&mut self) {
+        self.handle.abort();
     }
 }
 
@@ -125,12 +125,6 @@ impl<T: 'static> Task<T> for TokioLocalTask<T> {
             }
             Poll::Pending => Poll::Pending,
         }
-    }
-
-    fn poll_cancel(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<()> {
-        let this = unsafe { self.get_unchecked_mut() };
-        this.handle.abort();
-        Poll::Ready(())
     }
 }
 
@@ -236,21 +230,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_tokio_task_cancel() {
-        let executor = Runtime::new().expect("Failed to create Tokio runtime");
-        let mut task: TokioTask<&str> = Executor::spawn(&executor, async {
-            sleep(Duration::from_secs(10)).await;
-            "should be cancelled"
-        });
-
-        let waker = create_waker();
-        let mut cx = Context::from_waker(&waker);
-
-        let cancel_result = Pin::new(&mut task).poll_cancel(&mut cx);
-        assert_eq!(cancel_result, Poll::Ready(()));
-    }
-
-    #[tokio::test]
     async fn test_tokio_task_panic_handling() {
         let executor = Runtime::new().expect("Failed to create Tokio runtime");
         let task: TokioTask<()> = Executor::spawn(&executor, async {
@@ -344,27 +323,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_tokio_local_task_cancel() {
-        let local_set = tokio::task::LocalSet::new();
-
-        local_set
-            .run_until(async {
-                let mut task: TokioLocalTask<&str> =
-                    LocalExecutor::spawn_local(&local_set, async {
-                        sleep(Duration::from_secs(10)).await;
-                        "should be cancelled"
-                    });
-
-                let waker = create_waker();
-                let mut cx = Context::from_waker(&waker);
-
-                let cancel_result = Pin::new(&mut task).poll_cancel(&mut cx);
-                assert_eq!(cancel_result, Poll::Ready(()));
-            })
-            .await;
-    }
-
-    #[tokio::test]
     async fn test_tokio_local_task_panic_handling() {
         let local_set = tokio::task::LocalSet::new();
 
@@ -415,17 +373,6 @@ mod tests {
         let result = task.result().await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 123);
-    }
-
-    #[tokio::test]
-    async fn test_task_cancel_future() {
-        let executor = Runtime::new().expect("Failed to create Tokio runtime");
-        let task: TokioTask<&str> = Executor::spawn(&executor, async {
-            sleep(Duration::from_secs(10)).await;
-            "cancelled"
-        });
-
-        task.cancel().await;
     }
 
     #[tokio::test]

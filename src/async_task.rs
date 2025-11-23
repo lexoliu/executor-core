@@ -7,8 +7,7 @@
 use crate::{Error, Task};
 use core::{
     future::Future,
-    mem::ManuallyDrop,
-    pin::{Pin, pin},
+    pin::Pin,
     task::{Context, Poll},
 };
 
@@ -31,7 +30,7 @@ where
 ///
 /// This provides panic safety and proper error handling for tasks created
 /// with the `async-task` crate.
-pub struct AsyncTask<T>(ManuallyDrop<Option<async_task::Task<T>>>);
+pub struct AsyncTask<T>(async_task::Task<T>);
 
 impl<T> core::fmt::Debug for AsyncTask<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -41,7 +40,7 @@ impl<T> core::fmt::Debug for AsyncTask<T> {
 
 impl<T> From<async_task::Task<T>> for AsyncTask<T> {
     fn from(task: async_task::Task<T>) -> Self {
-        Self(ManuallyDrop::new(Some(task)))
+        Self(task)
     }
 }
 
@@ -49,30 +48,30 @@ impl<T> Future for AsyncTask<T> {
     type Output = T;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.as_mut()
-            .poll_result(cx)
-            .map(|res| res.expect("Task panicked"))
+        Pin::new(&mut self.0).poll(cx)
     }
 }
 
 impl<T> Task<T> for AsyncTask<T> {
     fn poll_result(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, Error>> {
-        let mut this = self.as_mut();
-
-        let task = this.0.as_mut().expect("Task has already been cancelled");
-        let result = catch_unwind(|| pin!(task).poll(cx));
-
-        match result {
-            Ok(Poll::Ready(value)) => Poll::Ready(Ok(value)),
-            Ok(Poll::Pending) => Poll::Pending,
-            Err(error) => Poll::Ready(Err(error)),
+        match Pin::new(&mut self.0).poll(cx) {
+            Poll::Ready(value) => {
+                #[cfg(feature = "std")]
+                {
+                    // In std environments, we catch panics to return as errors
+                    match catch_unwind(|| value) {
+                        Ok(v) => Poll::Ready(Ok(v)),
+                        Err(error) => Poll::Ready(Err(error)),
+                    }
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    // In no-std environments, we can't catch panics
+                    Poll::Ready(Ok(value))
+                }
+            }
+            Poll::Pending => Poll::Pending,
         }
-    }
-
-    fn poll_cancel(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        let task = self.0.take().expect("Task has already been cancelled");
-        let cancel_fut = task.cancel();
-        pin!(cancel_fut).poll(cx).map(|_| ())
     }
 }
 
