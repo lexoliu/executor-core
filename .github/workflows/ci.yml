@@ -79,7 +79,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build for WASM
-        run: cargo build --target wasm32-unknown-unknown --all-features
+        run: cargo build --target wasm32-unknown-unknown --features std
 
   minimal-versions:
     name: Minimal versions
