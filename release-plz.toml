@@ -1,0 +1,3 @@
+[workspace]
+# Add [skip ci] to release commits to prevent CI from running again after merging release PR
+release_commits = "chore(release): release {{ crate_name }} {{ version }} [skip ci]"
