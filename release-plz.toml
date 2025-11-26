@@ -1,24 +1,16 @@
 [workspace]
-# Add [skip ci] to release commits to prevent CI from running again after merging release PR
-release_commits = "chore(release): {{ crate_name }} v{{ version }} [skip ci]"
-
-# PR configuration
 pr_draft = false
+changelog_config = "cliff.toml"
 pr_labels = ["release"]
+git_release_name = "v{{ version }}"
+commit_message = "chore(release): {{ crate_name }} v{{ version }} [skip ci]"
 
-# Changelog configuration  
 changelog_update = true
 
 [[package]]
 name = "executor-core"
 
-# Auto-update version in README.md (支持 x.y 和 x.y.z 格式)
-[[package.version_replacers]]
-file = "README.md"
-regex = 'executor-core = "[0-9]+\.[0-9]+(\.[0-9]+)?"'
-replacement = 'executor-core = "{{ version }}"'
-
-[[package.version_replacers]]
-file = "README.md"
-regex = 'executor-core = \{ version = "[0-9]+\.[0-9]+(\.[0-9]+)?"'
-replacement = 'executor-core = { version = "{{ version }}"'
+[[package.files_to_update]]
+path = "README.md"
+search = 'executor-core = "[0-9]+\.[0-9]+(\.[0-9]+)?"'
+replace = 'executor-core = "{{ version }}"'
