@@ -1,17 +1,24 @@
 [workspace]
 # Add [skip ci] to release commits to prevent CI from running again after merging release PR
-release_commits = "chore(release): release {{ crate_name }} {{ version }} [skip ci]"
+release_commits = "chore(release): {{ crate_name }} v{{ version }} [skip ci]"
+
+# PR configuration
+pr_draft = false
+pr_labels = ["release"]
+
+# Changelog configuration  
+changelog_update = true
 
 [[package]]
 name = "executor-core"
 
-# Auto-update version in README.md
+# Auto-update version in README.md (支持 x.y 和 x.y.z 格式)
 [[package.version_replacers]]
 file = "README.md"
-regex = 'executor-core = "[0-9]+\.[0-9]+"'
+regex = 'executor-core = "[0-9]+\.[0-9]+(\.[0-9]+)?"'
 replacement = 'executor-core = "{{ version }}"'
 
 [[package.version_replacers]]
 file = "README.md"
-regex = 'executor-core = \{ version = "[0-9]+\.[0-9]+"'
+regex = 'executor-core = \{ version = "[0-9]+\.[0-9]+(\.[0-9]+)?"'
 replacement = 'executor-core = { version = "{{ version }}"'
