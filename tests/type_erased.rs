@@ -1,7 +1,7 @@
 #![cfg(all(feature = "std", feature = "tokio"))]
 
-use executor_core::{AnyExecutor, AnyLocalExecutor, Executor, LocalExecutor};
 use executor_core::tokio::{LocalSet, Runtime};
+use executor_core::{AnyExecutor, AnyLocalExecutor, Executor, LocalExecutor};
 
 #[test]
 fn any_executor_spawn_and_downcast() {

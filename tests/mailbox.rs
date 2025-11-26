@@ -39,8 +39,7 @@ fn mailbox_supports_non_send_state() {
     let local_set = LocalSet::new();
 
     let value: usize = handle.block_on(local_set.run_until(async {
-        let mailbox =
-            Mailbox::new(&local_set, RefCell::new(Vec::<Rc<usize>>::with_capacity(1)));
+        let mailbox = Mailbox::new(&local_set, RefCell::new(Vec::<Rc<usize>>::with_capacity(1)));
 
         mailbox.handle(|vec| {
             vec.borrow_mut().push(Rc::new(7));
