@@ -16,26 +16,6 @@
 //! - [`Task::poll_result`] for explicit error handling
 //! - [`Task::detach`] for fire-and-forget tasks
 //!
-//! ## Quick Start
-//!
-//! ```rust
-//! use executor_core::{Executor, init_global_executor, spawn};
-//! use executor_core::tokio::Runtime;
-//!
-//! fn main() {
-//!     // Initialize the global executor using a Tokio runtime
-//!     let runtime = Runtime::new().expect("runtime");
-//!     let handle = runtime.handle().clone();
-//!     init_global_executor(runtime);
-//!
-//!     // Spawn a task
-//!     let task = spawn(async { 42 });
-//!
-//!     // Await it on the runtime
-//!     let result = handle.block_on(task);
-//!     assert_eq!(result, 42);
-//! }
-//! ```
 //!
 //! ## Features
 //!
