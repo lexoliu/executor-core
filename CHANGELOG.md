@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1](https://github.com/lexoliu/executor-core/compare/v0.7.0...v0.7.1) - 2025-12-09
+
+### Other
+
+- remove changelog_config from release configuration
+- remove commit message template and unused package update configuration
+- update CI workflow to generate lockfile before security audit
+- update dependencies in Cargo.toml and adjust smol feature flag
+- add Smol executor support and update TokioGlobal struct
+- implement TokioGlobal executor for task spawning
+- enable publishing and git tagging in release configuration
+- remove redundant build and documentation test steps from CI workflow
+- update CI workflows and release configuration for improved efficiency and clarity
+- refactor CI and release workflows for improved clarity and efficiency
+- update release configuration to include version replacers for README.md
+- add release configuration to skip CI on release commits
+
 ## [0.7.0](https://github.com/lexoliu/executor-core/compare/v0.6.0...v0.7.0) - 2025-11-26
 
 ### Other
