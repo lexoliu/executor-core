@@ -14,6 +14,22 @@ use core::{
     task::{Context, Poll},
 };
 
+/// Global Tokio executor that can be used to spawn tasks.
+#[derive(Debug)]
+pub struct TokioGlobal;
+
+impl Executor for TokioGlobal {
+    type Task<T: Send + 'static> = TokioTask<T>;
+
+    fn spawn<Fut>(&self, fut: Fut) -> Self::Task<Fut::Output>
+    where
+        Fut: Future<Output: Send> + Send + 'static,
+    {
+        let handle = tokio::task::spawn(fut);
+        TokioTask { handle }
+    }
+}
+
 pub use tokio::{runtime::Runtime, task::JoinHandle, task::LocalSet};
 
 /// Task wrapper for Tokio's `JoinHandle` that implements the [`Task`] trait.
