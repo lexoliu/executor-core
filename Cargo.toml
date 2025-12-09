@@ -1,6 +1,6 @@
 [package]
 name = "executor-core"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Lexo Liu <me@lexo.cool>"]
 edition = "2024"
 rust-version = "1.85.1"
