@@ -15,7 +15,7 @@ use core::{
 };
 
 /// Global Tokio executor that can be used to spawn tasks.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct TokioGlobal;
 
 impl Executor for TokioGlobal {

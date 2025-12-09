@@ -49,6 +49,10 @@ pub mod async_executor;
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 pub mod tokio;
 
+#[cfg(feature = "smol")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
+pub mod smol;
+
 use core::{
     any::Any,
     fmt::Debug,
@@ -60,7 +64,6 @@ use core::{
 };
 
 pub mod mailbox;
-
 use alloc::boxed::Box;
 use async_channel::Receiver;
 
