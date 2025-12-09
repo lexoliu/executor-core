@@ -5,6 +5,7 @@ A flexible task executor abstraction layer for Rust async runtimes.
 [![Crates.io](https://img.shields.io/crates/v/executor-core.svg)](https://crates.io/crates/executor-core)
 [![Documentation](https://docs.rs/executor-core/badge.svg)](https://docs.rs/executor-core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Coverage](https://img.shields.io/codecov/c/github/lexoliu/executor-core?logo=codecov)](https://app.codecov.io/gh/lexoliu/executor-core)
 
 ## Overview
 
