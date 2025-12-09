@@ -24,9 +24,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 async-channel = { version = "2.5.0", default-features = false }
-pin-project-lite = { version = "0.2", default-features = false}
 smol = { version = "2.0.2", default-features = false, optional = true }
-take_mut = "0.2.2"
 
 [dependencies.async-task]
 version = "4.7"
@@ -49,7 +47,7 @@ default = ["std"]
 std = ["async-task?/std"]
 async-task = ["dep:async-task"]
 async-executor = ["dep:async-executor", "async-task", "std"]
-smol = ["dep:smol"]
+smol = ["dep:smol","async-task"]
 tokio = ["dep:tokio", "std"]
 
 # Feature flag for enabling all compatible features
