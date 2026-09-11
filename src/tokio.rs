@@ -156,23 +156,13 @@ impl LocalExecutor for tokio::task::LocalSet {
 mod tests {
     use super::*;
     use crate::{Executor, LocalExecutor, Task};
-    use alloc::task::Wake;
-    use alloc::{format, sync::Arc};
+    use alloc::format;
     use core::future::Future;
     use core::{
         pin::Pin,
         task::{Context, Poll, Waker},
     };
     use tokio::time::{Duration, sleep};
-
-    struct TestWaker;
-    impl Wake for TestWaker {
-        fn wake(self: Arc<Self>) {}
-    }
-
-    fn create_waker() -> Waker {
-        Arc::new(TestWaker).into()
-    }
 
     #[test]
     fn test_default_executor_spawn() {
@@ -198,8 +188,7 @@ mod tests {
         let executor = Runtime::new().expect("Failed to create Tokio runtime");
         let mut task: TokioTask<i32> = Executor::spawn(&executor, async { 100 });
 
-        let waker = create_waker();
-        let mut cx = Context::from_waker(&waker);
+        let mut cx = Context::from_waker(Waker::noop());
 
         match Pin::new(&mut task).poll(&mut cx) {
             Poll::Ready(result) => assert_eq!(result, 100),
@@ -215,8 +204,7 @@ mod tests {
         let executor = Runtime::new().expect("Failed to create Tokio runtime");
         let mut task: TokioTask<&str> = Executor::spawn(&executor, async { "success" });
 
-        let waker = create_waker();
-        let mut cx = Context::from_waker(&waker);
+        let mut cx = Context::from_waker(Waker::noop());
 
         match Pin::new(&mut task).poll_result(&mut cx) {
             Poll::Ready(Ok(result)) => assert_eq!(result, "success"),
@@ -283,8 +271,7 @@ mod tests {
                 let mut task: TokioLocalTask<i32> =
                     LocalExecutor::spawn_local(&local_set, async { 200 });
 
-                let waker = create_waker();
-                let mut cx = Context::from_waker(&waker);
+                let mut cx = Context::from_waker(Waker::noop());
 
                 match Pin::new(&mut task).poll(&mut cx) {
                     Poll::Ready(result) => assert_eq!(result, 200),
@@ -306,8 +293,7 @@ mod tests {
                 let mut task: TokioLocalTask<&str> =
                     LocalExecutor::spawn_local(&local_set, async { "local success" });
 
-                let waker = create_waker();
-                let mut cx = Context::from_waker(&waker);
+                let mut cx = Context::from_waker(Waker::noop());
 
                 match Pin::new(&mut task).poll_result(&mut cx) {
                     Poll::Ready(Ok(result)) => assert_eq!(result, "local success"),
