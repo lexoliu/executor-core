@@ -65,7 +65,7 @@ pub mod async_task;
 #[cfg_attr(docsrs, doc(cfg(feature = "async-executor")))]
 pub mod async_executor;
 
-#[cfg(feature = "tokio")]
+#[cfg(all(feature = "tokio", not(target_arch = "wasm32")))]
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 pub mod tokio;
 
