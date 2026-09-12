@@ -4,6 +4,12 @@ on:
     push:
         branches:
             - main
+
+permissions:
+    contents: write
+    pull-requests: write
+    id-token: write
+
 jobs:
     release-plz:
         name: Release-plz
@@ -18,8 +24,13 @@ jobs:
               with:
                   toolchain: stable
 
+            # Mint a short-lived crates.io token from the GitHub OIDC
+            # identity instead of a stored CARGO_REGISTRY_TOKEN.
+            - uses: rust-lang/crates-io-auth-action@v1
+              id: crates-io-auth
+
             - name: Run release-plz
               uses: MarcoIeni/release-plz-action@v0.5
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+                  CARGO_REGISTRY_TOKEN: ${{ steps.crates-io-auth.outputs.token }}
