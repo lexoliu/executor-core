@@ -357,6 +357,10 @@ impl AnyLocalExecutor {
 /// This task can be awaited like any other task and provides the same
 /// cancellation and error handling capabilities as other task implementations.
 /// It wraps tasks from any [`LocalExecutor`] implementation in a type-erased manner.
+///
+/// Dropping the task cancels the future, so a fire-and-forget spawn must call
+/// [`detach`](Self::detach); the `must_use` turns a dropped handle into a warning.
+#[must_use = "dropping the task cancels its future; await it, keep it, or call `.detach()`"]
 pub struct AnyLocalExecutorTask<T> {
     inner: Pin<Box<dyn Task<()> + 'static>>,
     receiver: Receiver<Result<T, Error>>,
@@ -512,6 +516,10 @@ pub struct AnyExecutor(Box<dyn AnyExecutorImpl>);
 ///
 /// This task can be awaited like any other task and provides the same
 /// cancellation and error handling capabilities.
+///
+/// Dropping the task cancels the future, so a fire-and-forget spawn must call
+/// [`detach`](Self::detach); the `must_use` turns a dropped handle into a warning.
+#[must_use = "dropping the task cancels its future; await it, keep it, or call `.detach()`"]
 pub struct AnyExecutorTask<T> {
     inner: Pin<Box<dyn Task<()> + Send>>,
     receiver: Receiver<Result<T, Error>>,
