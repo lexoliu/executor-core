@@ -53,11 +53,13 @@ jobs:
       - name: Build
         run: cargo build --verbose
 
+      - uses: taiki-e/install-action@nextest
+
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo nextest run
 
       - name: Run tests with all features
-        run: cargo test --verbose --all-features
+        run: cargo nextest run --all-features
 
       - name: Test documentation
         run: cargo test --doc
@@ -118,8 +120,10 @@ jobs:
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
 
+      - uses: taiki-e/install-action@nextest
+
       - name: Generate test coverage
-        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+        run: cargo llvm-cov nextest --all-features --workspace --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
