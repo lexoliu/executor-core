@@ -647,6 +647,11 @@ mod std_on {
         })
     }
 
+    /// Returns `true` if a local executor has already been attached to this thread.
+    pub fn is_local_executor_initialized() -> bool {
+        LOCAL_EXECUTOR.with(|cell| cell.get().is_some())
+    }
+
     static GLOBAL_EXECUTOR: OnceLock<AnyExecutor> = OnceLock::new();
 
     /// Initialize the global executor for spawning Send futures.
