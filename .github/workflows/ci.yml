@@ -55,8 +55,9 @@ jobs:
 
       - uses: taiki-e/install-action@nextest
 
+      # Every test needs a backend feature; the default set (`std`) has none.
       - name: Run tests
-        run: cargo nextest run
+        run: cargo nextest run --no-tests=pass
 
       - name: Run tests with all features
         run: cargo nextest run --all-features
