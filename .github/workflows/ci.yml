@@ -42,10 +42,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust 1.93 (MSRV)
+      - name: Install Rust 1.95 (MSRV)
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.93"
+          toolchain: "1.95"
 
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
