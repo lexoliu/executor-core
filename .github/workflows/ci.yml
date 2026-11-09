@@ -6,104 +6,179 @@ on:
   pull_request:
     branches: ["**"]
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   lint:
-    name: Lint
+    name: Lint (clippy + fmt)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: stable
           components: clippy, rustfmt
-      - uses: Swatinem/rust-cache@v2
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  test:
+    name: Test on ${{ matrix.os }}
+    needs: lint
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust 1.95 (MSRV)
+        uses: dtolnay/rust-toolchain@stable
         with:
-          shared-key: ci-ubuntu
-      - run: cargo fmt --all -- --check
-      - run: cargo clippy --all-targets --all-features -- -D warnings
+          toolchain: "1.95"
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --verbose
+
+      - uses: taiki-e/install-action@nextest
+
+      # Every test needs a backend feature; the default set (`std`) has none.
+      - name: Run tests
+        run: cargo nextest run --no-tests=pass
+
+      - name: Run tests with all features
+        run: cargo nextest run --all-features
+
+      - name: Test documentation
+        run: cargo test --doc
 
   wasm:
-    name: WASM
+    name: WASM build
+    needs: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ci-ubuntu
-      - run: cargo build --target wasm32-unknown-unknown --features std
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build for WASM
+        run: cargo build --target wasm32-unknown-unknown --all-features
+
+  minimal-versions:
+    name: Minimal versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-hack
+        run: cargo install cargo-hack
+
+      - name: Check minimal versions
+        run: cargo hack check --all --ignore-private
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: stable
           components: llvm-tools-preview
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ci-ubuntu
-      - uses: taiki-e/install-action@cargo-llvm-cov
-      - run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
-      - uses: codecov/codecov-action@v4
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
+
+      - uses: taiki-e/install-action@nextest
+
+      - name: Generate test coverage
+        run: cargo llvm-cov nextest --all-features --workspace --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
         with:
           files: lcov.info
           fail_ci_if_error: true
-  typos:
-    name: Typos
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: crate-ci/typos@master
-
-  audit:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    steps:
-        - uses: actions/checkout@v4
-        - uses: Swatinem/rust-cache@v2
-          with:
-            shared-key: ci-ubuntu
-        - name: Generate Lockfile
-          run: cargo generate-lockfile
-        - uses: rustsec/audit-check@v2
-          with:
-            token: ${{ secrets.GITHUB_TOKEN }}
-
-  unused-deps:
-    name: Unused Dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ci-ubuntu
-      - uses: taiki-e/install-action@cargo-machete
-      - run: cargo machete
 
   feature-checks:
-    name: Features
+    name: Feature checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ci-ubuntu
-      - uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack check --each-feature --no-dev-deps
-      - run: cargo hack check --feature-powerset --no-dev-deps
 
-  test:
-    name: Test
-    uses: ./.github/workflows/test.yml
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-hack
+        run: cargo install cargo-hack
+
+      - name: Check each feature
+        run: cargo hack check --each-feature --no-dev-deps
+
+      - name: Check feature combinations
+        run: cargo hack check --feature-powerset --no-dev-deps
+
+  audit:
+    name: Security audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate lockfile
+        run: cargo generate-lockfile
+
+      - uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  unused-deps:
+    name: Unused dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - uses: taiki-e/install-action@cargo-machete
+
+      - run: cargo machete

@@ -36,22 +36,12 @@ mod tests {
     extern crate std;
 
     use crate::{Executor, LocalExecutor, Task, async_task::AsyncTask};
-    use alloc::task::Wake;
-    use alloc::{format, sync::Arc};
+    use alloc::format;
     use core::future::Future;
     use core::{
         pin::Pin,
         task::{Context, Poll, Waker},
     };
-
-    struct TestWaker;
-    impl Wake for TestWaker {
-        fn wake(self: Arc<Self>) {}
-    }
-
-    fn create_waker() -> Waker {
-        Arc::new(TestWaker).into()
-    }
 
     async fn sleep_ms(ms: u64) {
         #[cfg(feature = "std")]
@@ -99,8 +89,7 @@ mod tests {
         let ex = async_executor::Executor::new();
         let mut task: AsyncTask<i32> = Executor::spawn(&ex, async { 100 });
 
-        let waker = create_waker();
-        let mut cx = Context::from_waker(&waker);
+        let mut cx = Context::from_waker(Waker::noop());
 
         match Pin::new(&mut task).poll(&mut cx) {
             Poll::Ready(result) => assert_eq!(result, 100),
@@ -116,8 +105,7 @@ mod tests {
         let ex = async_executor::Executor::new();
         let mut task: AsyncTask<&str> = Executor::spawn(&ex, async { "success" });
 
-        let waker = create_waker();
-        let mut cx = Context::from_waker(&waker);
+        let mut cx = Context::from_waker(Waker::noop());
 
         match Pin::new(&mut task).poll_result(&mut cx) {
             Poll::Ready(Ok(result)) => assert_eq!(result, "success"),
@@ -180,8 +168,7 @@ mod tests {
         let mut task: AsyncTask<&str> =
             LocalExecutor::spawn_local(&local_ex, async { "local success" });
 
-        let waker = create_waker();
-        let mut cx = Context::from_waker(&waker);
+        let mut cx = Context::from_waker(Waker::noop());
 
         match Pin::new(&mut task).poll_result(&mut cx) {
             Poll::Ready(Ok(result)) => assert_eq!(result, "local success"),
@@ -254,8 +241,7 @@ mod tests {
         let ex = async_executor::Executor::new();
         let mut task: AsyncTask<i32> = Executor::spawn(&ex, async { 42 });
 
-        let waker = create_waker();
-        let mut cx = Context::from_waker(&waker);
+        let mut cx = Context::from_waker(Waker::noop());
 
         let _poll_result = Pin::new(&mut task).poll_result(&mut cx);
 

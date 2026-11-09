@@ -3,7 +3,7 @@ name = "executor-core"
 version = "0.7.1"
 authors = ["Lexo Liu <me@lexo.cool>"]
 edition = "2024"
-rust-version = "1.85.1"
+rust-version = "1.95"
 description = "A zero-cost task executor abstraction layer for Rust async runtimes"
 repository = "https://github.com/lexoliu/executor-core"
 documentation = "https://docs.rs/executor-core"
@@ -19,12 +19,11 @@ license = { file = "LICENSE" }
 
 
 [package.metadata.docs.rs]
-features = ["async-task", "async-executor", "tokio", "std"]
+features = ["async-task", "async-executor", "tokio", "compio", "smol", "std"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 async-channel = { version = "2.5.0", default-features = false }
-smol = { version = "2.0.2", default-features = false, optional = true }
 
 [dependencies.async-task]
 version = "4.7"
@@ -36,10 +35,21 @@ features = []
 version = "1.13.2"
 optional = true
 
-[dependencies.tokio]
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.tokio]
 version = "1.45"
 default-features = false
 features = ["rt", "rt-multi-thread"]
+optional = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.smol]
+version = "2.0.2"
+default-features = false
+optional = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.compio]
+version = "0.19.2"
+default-features = false
+features = ["dispatcher", "runtime"]
 optional = true
 
 [features]
@@ -49,9 +59,10 @@ async-task = ["dep:async-task"]
 async-executor = ["dep:async-executor", "async-task", "std"]
 smol = ["dep:smol","async-task"]
 tokio = ["dep:tokio", "std"]
+compio = ["dep:compio", "std"]
 
 # Feature flag for enabling all compatible features
-full = ["std", "async-task", "async-executor", "tokio"]
+full = ["std", "async-task", "async-executor", "tokio", "compio"]
 
 [dev-dependencies]
 tokio = { version = "1.45", features = [
