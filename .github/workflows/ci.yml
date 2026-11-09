@@ -55,8 +55,9 @@ jobs:
 
       - uses: taiki-e/install-action@nextest
 
+      # Every test needs a backend feature; the default set (`std`) has none.
       - name: Run tests
-        run: cargo nextest run
+        run: cargo nextest run --no-tests=pass
 
       - name: Run tests with all features
         run: cargo nextest run --all-features
@@ -153,3 +154,31 @@ jobs:
 
       - name: Check feature combinations
         run: cargo hack check --feature-powerset --no-dev-deps
+
+  audit:
+    name: Security audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate lockfile
+        run: cargo generate-lockfile
+
+      - uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  unused-deps:
+    name: Unused dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - uses: taiki-e/install-action@cargo-machete
+
+      - run: cargo machete
