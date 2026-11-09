@@ -1,36 +1,82 @@
 name: Release
 
+# `release` publishes what a push to `main` carries; the required checks on
+# `main` already proved the merged commit. `release-pr` keeps the version bump
+# and changelog pull request open against `dev` on every push to `dev`. The
+# bump belongs on `dev` because a pull request opened with the default
+# `GITHUB_TOKEN` starts no workflow runs, so one targeting `main` could never
+# satisfy the required check there.
 on:
-    push:
-        branches:
-            - main
-
-permissions:
-    contents: write
-    pull-requests: write
-    id-token: write
+  push:
+    branches: [main, dev]
 
 jobs:
-    release-plz:
-        name: Release-plz
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
+  release:
+    name: Publish release
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+      id-token: write
+    concurrency:
+      group: release-publish-main
+      cancel-in-progress: false
+    steps:
+      - name: Checkout the pushed main commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - &rust-toolchain
+        name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      # Mint a short-lived crates.io token from the GitHub OIDC identity
+      # instead of a stored CARGO_REGISTRY_TOKEN.
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: crates-io-auth
+      - name: Publish unpublished crate version
+        uses: release-plz/action@v0.5
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-io-auth.outputs.token }}
 
-            - name: Install Rust
-              uses: dtolnay/rust-toolchain@v1
-              with:
-                  toolchain: stable
-
-            # Mint a short-lived crates.io token from the GitHub OIDC
-            # identity instead of a stored CARGO_REGISTRY_TOKEN.
-            - uses: rust-lang/crates-io-auth-action@v1
-              id: crates-io-auth
-
-            - name: Run release-plz
-              uses: MarcoIeni/release-plz-action@v0.5
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  CARGO_REGISTRY_TOKEN: ${{ steps.crates-io-auth.outputs.token }}
+  release-pr:
+    name: Prepare next release
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: release-plz-dev
+      cancel-in-progress: false
+    steps:
+      - name: Checkout the pushed dev commit
+        uses: actions/checkout@v6
+        with:
+          ref: dev
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify pushed commit
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          actual_sha="$(git rev-parse HEAD)"
+          if [[ "$actual_sha" != "$EXPECTED_SHA" ]]; then
+            echo "::error::dev moved after this push: expected $EXPECTED_SHA, checked out $actual_sha"
+            exit 1
+          fi
+      - *rust-toolchain
+      # The pull request lands the bump on `dev`; the release itself is the
+      # `dev` -> `main` pull request that carries it, which runs the full
+      # check set.
+      - name: Create or update release PR
+        uses: release-plz/action@v0.5
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
