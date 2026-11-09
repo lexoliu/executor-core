@@ -69,6 +69,10 @@ pub mod async_executor;
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 pub mod tokio;
 
+#[cfg(all(feature = "compio", not(target_arch = "wasm32")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "compio")))]
+pub mod compio;
+
 use core::{
     any::Any,
     fmt::Debug,
