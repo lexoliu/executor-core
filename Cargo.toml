@@ -3,7 +3,7 @@ name = "executor-core"
 version = "0.6.0"
 authors = ["Lexo Liu <me@lexo.cool>"]
 edition = "2024"
-rust-version = "1.85.1"
+rust-version = "1.93"
 description = "A zero-cost task executor abstraction layer for Rust async runtimes"
 repository = "https://github.com/lexoliu/executor-core"
 documentation = "https://docs.rs/executor-core"
@@ -24,7 +24,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 async-channel = { version = "2.5.0", default-features = false }
-compio = { version = "0.19.2", default-features = false, features = ["dispatcher", "runtime"], optional = true }
 pin-project-lite = { version = "0.2", default-features = false}
 take_mut = "0.2.2"
 
@@ -42,6 +41,12 @@ optional = true
 version = "1.45"
 default-features = false
 features = ["rt", "rt-multi-thread"]
+optional = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.compio]
+version = "0.19.2"
+default-features = false
+features = ["dispatcher", "runtime"]
 optional = true
 
 [features]
