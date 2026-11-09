@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2](https://github.com/lexoliu/executor-core/compare/v0.7.1...v0.7.2) - 2026-11-09
+
+### Added
+
+- compio backend
+
+### Fixed
+
+- mark the erased task handles `#[must_use]`
+- gate the tokio backend to non-wasm targets
+
+### Other
+
+- Merge pull request #9 from lexoliu/fix/task-must-use
+- open the release-plz bump PR against dev, publish on main
+- accept an empty test run for the default feature set
+- merge main into dev
+- raise the MSRV to 1.95
+- gate compio off wasm32 and raise the MSRV to 1.93
+- run tests with cargo nextest ([#10](https://github.com/lexoliu/executor-core/pull/10))
+- publish to crates.io via OIDC trusted publishing ([#6](https://github.com/lexoliu/executor-core/pull/6))
+- gate pull requests into main so only dev may merge ([#7](https://github.com/lexoliu/executor-core/pull/7))
+- use Waker::noop() instead of a hand-rolled TestWaker
+- use stable toolchain
+- add rust-cache to dep-check workflow
+- add weekly dependency check workflow
+
 ## [0.7.1](https://github.com/lexoliu/executor-core/compare/v0.7.0...v0.7.1) - 2025-12-09
 
 ### Other
