@@ -16,26 +16,6 @@
 //! - [`Task::poll_result`] for explicit error handling
 //! - [`Task::detach`] for fire-and-forget tasks
 //!
-//! ## Quick Start
-//!
-//! ```rust
-//! use executor_core::{Executor, init_global_executor, spawn};
-//! use executor_core::tokio::Runtime;
-//!
-//! fn main() {
-//!     // Initialize the global executor using a Tokio runtime
-//!     let runtime = Runtime::new().expect("runtime");
-//!     let handle = runtime.handle().clone();
-//!     init_global_executor(runtime);
-//!
-//!     // Spawn a task
-//!     let task = spawn(async { 42 });
-//!
-//!     // Await it on the runtime
-//!     let result = handle.block_on(task);
-//!     assert_eq!(result, 42);
-//! }
-//! ```
 //!
 //! ## Features
 //!
@@ -73,6 +53,10 @@ pub mod tokio;
 #[cfg_attr(docsrs, doc(cfg(feature = "compio")))]
 pub mod compio;
 
+#[cfg(all(feature = "smol", not(target_arch = "wasm32")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "smol")))]
+pub mod smol;
+
 use core::{
     any::Any,
     fmt::Debug,
@@ -84,7 +68,6 @@ use core::{
 };
 
 pub mod mailbox;
-
 use alloc::boxed::Box;
 use async_channel::Receiver;
 

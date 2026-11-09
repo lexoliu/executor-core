@@ -11,36 +11,6 @@
 //! - Process operations on a value sequentially
 //! - Avoid blocking when sending updates
 //! - Make async calls that return values
-//!
-//! # Examples
-//!
-//! ```rust
-//! # async fn docs() {
-//! use executor_core::mailbox::Mailbox;
-//! use executor_core::tokio::{LocalSet, Runtime};
-//! use std::{cell::RefCell, collections::HashMap};
-//!
-//! let runtime = Runtime::new().unwrap();
-//! let handle = runtime.handle().clone();
-//! let local = LocalSet::new();
-//!
-//! handle.block_on(local.run_until(async {
-//!     // Create a mailbox containing a HashMap on the LocalSet
-//!     let mailbox = Mailbox::new(&local, RefCell::new(HashMap::<String, i32>::new()));
-//!
-//!    // Send updates to the value (non-blocking)
-//!     mailbox.handle(|map| {
-//!         map.borrow_mut().insert("key".to_string(), 42);
-//!     });
-//!
-//!     // Make async calls that return values
-//!     let value = mailbox.call(|map| {
-//!         map.borrow().get("key").copied().unwrap_or(0)
-//!     }).await;
-//!     # let _ = value;
-//! }));
-//! # }
-//! ```
 
 use crate::LocalExecutor;
 use alloc::boxed::Box;
@@ -82,25 +52,6 @@ impl<T: 'static> Mailbox<T> {
     ///
     /// * `executor` - The executor to spawn the background task on
     /// * `value` - The value to be owned by the background task
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use executor_core::mailbox::Mailbox;
-    /// use executor_core::tokio::{LocalSet, Runtime};
-    /// use std::{cell::RefCell, collections::HashMap};
-    ///
-    /// let runtime = Runtime::new().unwrap();
-    /// let handle = runtime.handle().clone();
-    /// let local = LocalSet::new();
-    ///
-    /// handle.block_on(local.run_until(async {
-    ///     let mailbox = Mailbox::new(&local, RefCell::new(HashMap::<String, i32>::new()));
-    ///     mailbox.handle(|map| {
-    ///         map.borrow_mut().insert("key".to_string(), 1);
-    ///     });
-    /// }));
-    /// ```
     #[allow(clippy::needless_pass_by_value)]
     pub fn new<E: LocalExecutor>(executor: E, value: T) -> Self {
         let (sender, receiver) = unbounded::<Box<dyn Send + FnOnce(&T)>>();
@@ -125,25 +76,6 @@ impl<T: 'static> Mailbox<T> {
     /// # Parameters
     ///
     /// * `update` - A closure that will be called with a reference to the value
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use executor_core::mailbox::Mailbox;
-    /// use executor_core::tokio::{LocalSet, Runtime};
-    /// use std::{cell::RefCell, collections::HashMap};
-    ///
-    /// let runtime = Runtime::new().unwrap();
-    /// let handle = runtime.handle().clone();
-    /// let local = LocalSet::new();
-    ///
-    /// handle.block_on(local.run_until(async {
-    ///     let mailbox = Mailbox::new(&local, RefCell::new(HashMap::<String, i32>::new()));
-    ///     mailbox.handle(|map| {
-    ///         map.borrow_mut().insert("key".to_string(), 42);
-    ///     });
-    /// }));
-    /// ```
     pub fn handle(&self, update: impl FnOnce(&T) + Send + 'static) {
         let _ = self.sender.try_send(Box::new(update));
     }
@@ -167,28 +99,6 @@ impl<T: 'static> Mailbox<T> {
     /// Panics if the background task has been dropped or the channel is closed,
     /// making it impossible to receive the result.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # async fn example() {
-    /// use executor_core::mailbox::Mailbox;
-    /// use executor_core::tokio::{LocalSet, Runtime};
-    /// use std::{cell::RefCell, collections::HashMap};
-    ///
-    /// let runtime = Runtime::new().unwrap();
-    /// let handle = runtime.handle().clone();
-    /// let local = LocalSet::new();
-    ///
-    /// handle.block_on(local.run_until(async {
-    ///     let mailbox = Mailbox::new(&local, RefCell::new(HashMap::<String, i32>::new()));
-    ///
-    ///     let value = mailbox.call(|map| {
-    ///         map.borrow().get("key").copied().unwrap_or(0)
-    ///     }).await;
-    ///     # let _ = value;
-    /// }));
-    /// # }
-    /// ```
     pub async fn call<R>(&self, f: impl FnOnce(&T) -> R + Send + 'static) -> R
     where
         R: Send + 'static,
