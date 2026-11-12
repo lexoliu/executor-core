@@ -1,10 +1,11 @@
 name: CI
 
 on:
-  push:
-    branches: ["**"]
   pull_request:
     branches: ["**"]
+  # release-plz opens its pull request under GITHUB_TOKEN, which starts no
+  # workflow, so the release workflow dispatches CI on the release branch.
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -182,3 +183,21 @@ jobs:
       - uses: taiki-e/install-action@cargo-machete
 
       - run: cargo machete
+
+  # The one required check on `main`: it passes only when every job above did.
+  ci-result:
+    name: CI result
+    if: always()
+    needs: [lint, test, wasm, minimal-versions, coverage, feature-checks, audit, unused-deps]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check job results
+        env:
+          RESULTS: ${{ join(needs.*.result, ', ') }}
+          FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          echo "job results: $RESULTS"
+          if [ "$FAILED" = "true" ]; then
+            echo "::error::one or more jobs failed or were cancelled"
+            exit 1
+          fi
