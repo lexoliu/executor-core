@@ -47,7 +47,8 @@ default-features = false
 optional = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.compio]
-version = "0.19.2"
+git = "https://github.com/lexoliu/compio"
+branch = "skyzen"
 default-features = false
 features = ["dispatcher", "runtime"]
 optional = true
