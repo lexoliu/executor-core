@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3](https://github.com/lexoliu/executor-core/compare/v0.7.2...v0.7.3) - 2026-11-21
+
+### Other
+
+- replace the cargo-machete job with cargo::unused_dependencies
+- Merge remote-tracking branch 'origin/main' into deps/22-compio-fork
+- release from main and retire dev
+- *(deps)* take compio from the skyzen fork branch
+
 ## [0.7.2](https://github.com/lexoliu/executor-core/compare/v0.7.1...v0.7.2) - 2026-11-09
 
 ### Added
