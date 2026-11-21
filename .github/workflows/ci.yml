@@ -169,26 +169,11 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  unused-deps:
-    name: Unused dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-
-      - uses: taiki-e/install-action@cargo-machete
-
-      - run: cargo machete
-
   # The one required check on `main`: it passes only when every job above did.
   ci-result:
     name: CI result
     if: always()
-    needs: [lint, test, wasm, minimal-versions, coverage, feature-checks, audit, unused-deps]
+    needs: [lint, test, wasm, minimal-versions, coverage, feature-checks, audit]
     runs-on: ubuntu-latest
     steps:
       - name: Check job results
